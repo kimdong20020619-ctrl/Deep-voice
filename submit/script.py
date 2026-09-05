@@ -72,11 +72,26 @@ CONFIG = {
     #       혼합 파일만 DF-Arena 호출이 하나 늘어난다.
     "file_head": "direct",
 
-    # 세그먼트 점수 집계. EER은 순위 기반이라 이상치 하나가 순위를 뒤집는다.
-    # 다만 "순차 혼합"(앞은 음악, 뒤는 음성)에는 max가 유리한 면도 있다.
+    # 세그먼트 점수 집계.
     #   "max" | "mean" | "topk_mean"
+    #
+    # ⚠️ max 에는 **길이 편향**이 있다. 평가셋은 4~60초라 세그먼트가 1~15개로 varies 하고,
+    # max 는 표본이 많을수록 커진다. 시뮬레이션(가정: REAL 세그먼트 오탐 6%)에서
+    # REAL 파일의 평균 max 가 4초 0.205 -> 60초 0.669 로 3.3배 올랐다.
+    # EER 은 파일 간 순위이므로 이 편향이 그대로 손해다.
+    #
+    # 가정 공간(오탐률 0~12% x 위조구간 15~100%) 16칸을 훑으면 max 가 이기는 곳은
+    # **오탐률 0 이고 위조구간이 짧은 1칸뿐**이다. 우리 가중평균 EER 이 34% 라는 것은
+    # 오탐률이 낮지 않다는 뜻이고, 그 영역에서 max 는 mean/top비율 보다 9~64배 나쁘다.
+    #
+    # 다만 전부 **시뮬레이션**이다. 실제 DF-Arena 점수 분포는 미확인이므로
+    # 검증셋에서 확인하고 바꾼다. 기본값은 베이스라인 유지.
     "segment_agg": "max",
     "segment_topk": 2,
+    # topk_mean 을 **비율**로 지정한다 (0 이면 segment_topk 개수를 쓴다).
+    # 0.25 면 세그먼트의 상위 25% 평균 — 길이에 따라 k 가 함께 늘어 편향이 상쇄된다.
+    # 위 민감도 분석에서 16칸 중 7칸 1위로 가장 안정적이었다.
+    "segment_topk_ratio": 0.0,
 
     # 헤드별 집계 덮어쓰기. None 이면 segment_agg 를 따른다.
     # 음악 위조 단서는 곡 전체에 퍼져 있고 음성 위조 단서는 국소적일 수 있어
@@ -115,7 +130,10 @@ CONFIG = {
     # Demucs 와 DF-Arena 호출 하나가 동시에 사라지기 때문이다.
     # 속도만이 아니라 분리 아티팩트를 안 만들어 정확도에도 유리하다.
     "demucs_gating": True,
-    "gate_voice": 0.20,      # VP가 이 값 미만이면 음성 성분이 없다고 본다
+    # ⚠️ gate_voice 는 아직 실측 근거가 없다. 음성 없는 파일의 VOICE_PRESENT_PROB 를
+    # 측정한 적이 없어 잡음바닥을 모른다 (gate_music 은 0.060 으로 확인됐다).
+    # 검증셋에서 확인 전까지 베이스라인적 안전값을 쓴다.
+    "gate_voice": 0.20,
     # gate_music 은 한 번 0.05 로 뒀다가 되돌렸다.
     # "음악 가중치가 0.27 로 무거우니 보수적으로" 라는 판단이었는데,
     # 음악 없는 더미의 MUSIC_PRESENT_PROB 실측값이 **0.060** 이다.
@@ -123,6 +141,13 @@ CONFIG = {
     # 1.92배 속도 이득을 실측했을 때 쓴 값이 0.10 이므로 그 값으로 되돌린다.
     # PANNs 음악 존재 AUC 가 0.989 라 0.06(없음)과 ~0.9(있음) 사이 간격이 넓다.
     "gate_music": 0.10,
+
+    # 무음 판정 RMS. 이 값 미만이면 DF-Arena 를 호출하지 않고 0.0 을 낸다.
+    # 베이스라인 값 1e-5 는 낮다 — 제출 #1 에서 음악이 거의 없는 더미(MP=0.060)의
+    # Demucs 반주 잔여물이 이 게이트를 통과해 MUSIC_FAKE=0.965 를 받았다.
+    # 즉 신호가 아니라 잡음을 채점했다. 올리면 그런 오탐이 줄지만
+    # 진짜 조용한 성분을 놓칠 수 있다. 검증셋에서 정한다.
+    "silence_rms": 1e-5,
 
     # 스템당 세그먼트 수 상한. 0 이면 무제한(=베이스라인).
     # 60초 파일은 스템당 15세그먼트라 1B 모델을 30회 호출한다.
@@ -313,7 +338,13 @@ def aggregate_segment_scores(scores, mode=None):
     if mode == "mean":
         return float(values.mean())
     if mode == "topk_mean":
-        k = min(int(CONFIG["segment_topk"]), values.size)
+        ratio = float(CONFIG.get("segment_topk_ratio", 0.0))
+        if ratio > 0:
+            # 비율 지정: 길이에 따라 k 가 함께 늘어 max 의 길이 편향을 상쇄한다.
+            k = max(1, int(np.ceil(values.size * ratio)))
+        else:
+            k = int(CONFIG["segment_topk"])
+        k = min(max(1, k), values.size)
         return float(np.sort(values)[-k:].mean())
     return float(values.max())
 
@@ -322,6 +353,10 @@ def calculate_rms(audio):
     if audio.size == 0:
         return 0.0
     return float(np.sqrt(np.mean(np.square(audio, dtype=np.float64))))
+
+
+def silence_threshold():
+    return float(CONFIG.get("silence_rms", SILENCE_RMS))
 
 
 # =============================================================================
@@ -643,7 +678,7 @@ class DFArenaScorer:
         want_embeddings=True 면 (점수, (n_seg, dim) 임베딩) 을 돌려준다.
         임베딩은 추론 과정에서 어차피 계산되는 값이라 추가 연산이 없다.
         """
-        if calculate_rms(audio) < SILENCE_RMS:
+        if calculate_rms(audio) < silence_threshold():
             return (0.0, None) if want_embeddings else 0.0
 
         capture = bool(want_embeddings) and self.has_embeddings

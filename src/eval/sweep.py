@@ -50,19 +50,24 @@ class CachedScorer:
         self.entry = entry
 
     def score(self, audio, kind=None, want_embeddings=False):
-        if audio.size <= 1:                      # 실제 채점기의 무음 게이트와 같은 동작
+        if audio.size <= 1:                      # 게이팅으로 비워둔 성분
             return (0.0, None) if want_embeddings else 0.0
 
         if audio.size == MARK_VOICE:
-            scores = self.entry["voice_segments"]
-            embeddings = self.entry.get("voice_embeddings")
+            name = "voice"
         elif audio.size == MARK_MUSIC:
-            scores = self.entry["music_segments"]
-            embeddings = self.entry.get("music_embeddings")
+            name = "music"
         else:
-            scores = self.entry["original_segments"]
-            embeddings = self.entry.get("original_embeddings")
+            name = "original"
 
+        # 무음 게이트를 스윕하려면 여기서 실제 RMS 와 비교해야 한다.
+        # precompute 가 각 스템의 RMS 를 함께 저장한다.
+        rms = self.entry.get(f"{name}_rms")
+        if rms is not None and rms < self.script.silence_threshold():
+            return (0.0, None) if want_embeddings else 0.0
+
+        scores = self.entry[f"{name}_segments"]
+        embeddings = self.entry.get(f"{name}_embeddings")
         value = self.script.aggregate_segment_scores(scores, self.script.resolve_agg(kind))
         return (value, embeddings) if want_embeddings else value
 
@@ -96,6 +101,7 @@ def precompute(script, label_rows, test_dir, panns, scorer, htdemucs, device,
             for name, wav in (("original", audio), ("voice", voice_audio), ("music", music_audio)):
                 segments = _segment_scores(script, scorer, wav, want_embeddings)
                 entry[f"{name}_segments"] = segments[0]
+                entry[f"{name}_rms"] = script.calculate_rms(wav)   # silence_rms 스윕용
                 if want_embeddings:
                     entry[f"{name}_embeddings"] = segments[1]
             cache.append(entry)
@@ -112,8 +118,12 @@ def precompute(script, label_rows, test_dir, panns, scorer, htdemucs, device,
 
 
 def _segment_scores(script, scorer, audio, want_embeddings):
-    """세그먼트별 원점수를 뽑는다. 집계는 스윕 때 다시 하므로 여기서는 하지 않는다."""
-    if script.calculate_rms(audio) < script.SILENCE_RMS:
+    """세그먼트별 원점수를 뽑는다. 집계와 무음 판정은 스윕 때 다시 하므로 여기서는 하지 않는다.
+
+    무음 문턱을 스윕하려면 캐시에 점수가 있어야 하므로, 여기서는 **가장 낮은 문턱**
+    (완전 무음만 제외)으로 뽑는다. 실제 문턱 적용은 CachedScorer 가 한다.
+    """
+    if script.calculate_rms(audio) < 1e-9:
         return [], None
 
     import torch
@@ -236,10 +246,17 @@ def default_grid():
         ("fuse:gamma0.25", {"file_head": "fusion", "fusion_mode": "gamma", "fusion_gamma": 0.25}),
         ("fuse:gated_max", {"file_head": "fusion", "fusion_mode": "gated_max"}),
         # 세그먼트 집계 — 전 항목에 영향
+        # max 는 길이 편향이 있다. 4~60초가 섞인 평가셋에서 표본 수가 1~15개로 달라진다.
+        # 비율 지정 top-k 는 길이에 따라 k 가 함께 늘어 그 편향을 상쇄한다.
         ("agg:mean", {"segment_agg": "mean"}),
         ("agg:topk2", {"segment_agg": "topk_mean", "segment_topk": 2}),
         ("agg:topk3", {"segment_agg": "topk_mean", "segment_topk": 3}),
+        ("agg:top25%", {"segment_agg": "topk_mean", "segment_topk_ratio": 0.25}),
+        ("agg:top40%", {"segment_agg": "topk_mean", "segment_topk_ratio": 0.40}),
         ("agg:music_mean", {"segment_agg_music": "mean"}),
+        # 무음 게이트 — 낮으면 분리 잔여물(잡음)까지 채점한다
+        ("silence:3e-4", {"silence_rms": 3e-4}),
+        ("silence:1e-3", {"silence_rms": 1e-3}),
         # 게이팅 임계값 — 속도와 정확도를 함께 바꾼다.
         # 음악 없는 파일의 MUSIC_PRESENT_PROB 실측이 0.060 이라 0.05 이하는 게이트가 죽는다.
         # 0.10 위쪽에서 어디가 최적인지가 실제 질문이다.

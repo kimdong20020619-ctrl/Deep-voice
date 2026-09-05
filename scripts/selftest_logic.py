@@ -188,6 +188,36 @@ def test_aggregation(m):
     check("k > 길이면 전체 평균",
           abs(m.aggregate_segment_scores([0.2, 0.8]) - 0.5) < 1e-9)
     check("빈 입력 -> 0.0", m.aggregate_segment_scores([]) == 0.0)
+
+    # 비율 지정 top-k — max 의 길이 편향을 상쇄하는 모드
+    m.CONFIG["segment_topk_ratio"] = 0.25
+    ten = [0.1 * i for i in range(1, 11)]          # 0.1 .. 1.0, 10개
+    check("비율 25% -> 상위 3개 평균 (ceil(10*0.25)=3)",
+          abs(m.aggregate_segment_scores(ten) - (0.8 + 0.9 + 1.0) / 3) < 1e-9,
+          str(m.aggregate_segment_scores(ten)))
+    four = [0.2, 0.4, 0.6, 0.8]
+    check("비율이 k<1 이 되면 최소 1개",
+          abs(m.aggregate_segment_scores(four) - 0.8) < 1e-9,
+          str(m.aggregate_segment_scores(four)))
+    check("세그먼트 1개면 그 값", abs(m.aggregate_segment_scores([0.42]) - 0.42) < 1e-9)
+
+    # 길이 편향이 실제로 줄어드는가 — 같은 분포에서 길이만 다르게
+    import numpy as _np
+    rng = _np.random.default_rng(0)
+    m.CONFIG["segment_agg"] = "max"
+    short_max = _np.mean([m.aggregate_segment_scores(rng.random(2)) for _ in range(2000)])
+    long_max = _np.mean([m.aggregate_segment_scores(rng.random(15)) for _ in range(2000)])
+    m.CONFIG["segment_agg"] = "topk_mean"
+    m.CONFIG["segment_topk_ratio"] = 0.25
+    short_r = _np.mean([m.aggregate_segment_scores(rng.random(2)) for _ in range(2000)])
+    long_r = _np.mean([m.aggregate_segment_scores(rng.random(15)) for _ in range(2000)])
+    check("max 는 길이에 따라 점수가 오른다 (편향 존재)", long_max - short_max > 0.15,
+          f"2seg {short_max:.3f} -> 15seg {long_max:.3f}")
+    check("비율 top-k 는 편향이 작다",
+          abs(long_r - short_r) < abs(long_max - short_max),
+          f"비율 {abs(long_r - short_r):.3f} vs max {abs(long_max - short_max):.3f}")
+
+    m.CONFIG["segment_topk_ratio"] = 0.0
     m.CONFIG["segment_agg"] = "max"
 
 
