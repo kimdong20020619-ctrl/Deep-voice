@@ -4,16 +4,24 @@ data/synth/*
 !data/raw/.gitkeep
 !data/synth/.gitkeep
 
-# 모델 가중치 (제출 zip에만 동봉)
-submit/**/*.pt
-submit/**/*.pth
-submit/**/*.bin
-submit/**/*.safetensors
+# 대회 배포 모델 일체. DF-Arena 1B 는 비영리 라이선스이고 대회 배포물이므로
+# 공개 저장소 재배포는 라이선스 위반이자 배포물 재배포다. 폴더째 제외한다.
+submit/model/
 submit/*.zip
+submit.zip
+verify_bundle.zip
+
+# 학습 산출 가중치
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.th
 *.ckpt
 
 # Python
 __pycache__/
+*.pyc
 *.py[cod]
 .venv/
 venv/

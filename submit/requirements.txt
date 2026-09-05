@@ -1,0 +1,14 @@
+# 의도적으로 비어 있다.
+#
+# 평가 서버에는 이 파이프라인이 쓰는 패키지가 전부 기본 설치돼 있다.
+#   torch 2.7.1+cu128 · torchaudio 2.7.1+cu128 · numpy 1.26.4
+#   librosa 0.10.2.post1 · soundfile · soxr
+#   demucs 4.0.1 · panns-inference 0.1.1 · torchlibrosa · julius · diffq
+#   transformers 4.57.6 · huggingface-hub · safetensors · accelerate
+#
+# 기본 설치된 패키지를 여기에 다시 적으면 버전 충돌로 "설치 오류"가 난다.
+# 비워두면 설치 10분 제한과 충돌 위험이 동시에 사라진다.
+#
+# 새 패키지를 추가할 때는 그 이점이 이 안전마진을 잃을 만한지 먼저 따진다.
+# 추가하는 경우에도 기본 설치 목록에 있는 것은 절대 적지 않는다.
+# 전체 목록: docs/06_scoring-and-submission.md 7절
