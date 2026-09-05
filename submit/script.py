@@ -70,7 +70,7 @@ CONFIG = {
     #
     # 비용: 게이팅으로 분리를 건너뛴 파일은 원본을 이미 채점했으므로 **추가 비용 0**.
     #       혼합 파일만 DF-Arena 호출이 하나 늘어난다.
-    "file_head": "fusion",
+    "file_head": "direct",
 
     # 세그먼트 점수 집계. EER은 순위 기반이라 이상치 하나가 순위를 뒤집는다.
     # 다만 "순차 혼합"(앞은 음악, 뒤는 음성)에는 max가 유리한 면도 있다.
@@ -83,6 +83,26 @@ CONFIG = {
     # 서로 다른 집계가 맞을 수 있다. 음악은 실효 가중치 0.27 로 따로 조율할 값이 있다.
     "segment_agg_voice": None,
     "segment_agg_music": None,
+
+    # 생성 음악 전용 헤드 (실효 가중치 0.27). "none" | "probe"
+    #
+    # DF-Arena 는 악기·반주 생성 음악을 학습하지 않았다. 새 모델을 들이는 대신
+    # 이미 zip 에 있는 DF-Arena 의 마지막 분류기 직전 임베딩(1280차원)에
+    # 선형 프로브 하나를 얹는다. FinalConformer.forward 의
+    #     embedding = x[:, 0, :] ; out = self.fc5(embedding)
+    # 에서 fc5 입력을 훅으로 가져온다.
+    #
+    # 이점: 새 의존성 0 · 새 대용량 가중치 0 · 추론 시 어차피 계산되는 값이라 **추가 비용 0**.
+    # 가중치는 model/music_head.npz 에 둔다. 파일이 없으면 자동으로 비활성이다.
+    # "constant" 는 진단용이다. MUSIC_FAKE_PROB 를 상수로 고정하면 Music EER 이
+    # 정확히 0.5(무작위)가 되므로, 같은 나머지 설정의 제출과 ADS 를 비교하면
+    #     ADS(상수) - ADS(모델) = 0.3 × (Music EER - 0.5)
+    # 로 **Music EER 을 단독으로 역산**할 수 있다. file_head=direct 일 때만 유효하다
+    # (FILE 이 음악 점수에 의존하지 않아야 한다).
+    "music_head": "none",
+    "music_constant": 0.5,
+    # 프로브와 DF-Arena 원래 점수를 섞는 비율. 1.0 이면 프로브만, 0.5 면 평균.
+    "music_head_blend": 1.0,
 
     # SEGMENT_SAMPLES(4.0375초)보다 짧은 파일의 패딩.
     # 대회 최소 길이가 4초(64,000샘플)라 4.00~4.04초 파일이 여기 걸린다.
@@ -444,6 +464,52 @@ def install_batch_patch():
     DF_Arena_1B._batch_patched = True
 
 
+class MusicProbe:
+    """DF-Arena 임베딩 위에 얹는 선형 프로브 (생성 음악 탐지).
+
+    model/music_head.npz 형식:
+        w     (1280,)  가중치
+        b     scalar   절편
+        mean  (1280,)  표준화 평균  (선택)
+        scale (1280,)  표준화 스케일 (선택)
+
+    학습은 Kaggle 에서 FakeMusicCaps 등으로 임베딩을 뽑아 로지스틱 회귀를 적합한다.
+    추론 시에는 내적 하나라 비용이 사실상 0이고 새 의존성도 없다.
+    """
+
+    def __init__(self, path):
+        data = np.load(path)
+        self.w = np.asarray(data["w"], dtype=np.float64).reshape(-1)
+        self.b = float(np.asarray(data["b"]).reshape(-1)[0])
+        self.mean = (np.asarray(data["mean"], dtype=np.float64).reshape(-1)
+                     if "mean" in data else 0.0)
+        self.scale = (np.asarray(data["scale"], dtype=np.float64).reshape(-1)
+                      if "scale" in data else 1.0)
+
+    def predict(self, embeddings):
+        """(n, dim) -> (n,) FAKE 확률."""
+        z = (np.asarray(embeddings, dtype=np.float64) - self.mean) / self.scale
+        logit = z @ self.w + self.b
+        return 1.0 / (1.0 + np.exp(-np.clip(logit, -60.0, 60.0)))
+
+
+def load_music_probe():
+    """설정이 켜져 있고 가중치 파일이 있을 때만 프로브를 만든다."""
+    if CONFIG.get("music_head") != "probe":
+        return None
+    path = MODEL_DIR / "music_head.npz"
+    if not path.is_file():
+        log("[info] music_head=probe 이지만 model/music_head.npz 가 없다. 비활성화한다.")
+        return None
+    try:
+        probe = MusicProbe(path)
+        log(f"[info] 음악 프로브 로드: dim={probe.w.size}, blend={CONFIG['music_head_blend']}")
+        return probe
+    except Exception as error:
+        log(f"[warn] 음악 프로브 로드 실패, 비활성화한다: {type(error).__name__}: {error}")
+        return None
+
+
 class DFArenaScorer:
     def __init__(self, device):
         if str(MODEL_DIR) not in sys.path:
@@ -475,7 +541,24 @@ class DFArenaScorer:
             except Exception as error:
                 log(f"[info] 배치 패치 실패, 단일 경로로 간다: {type(error).__name__}: {error}")
 
+        # 마지막 분류기(fc5) 입력이 곧 1280차원 임베딩이다. 훅으로 가져온다.
+        self._embeddings = []
+        self._capture = False
+        self._install_embedding_hook()
+
         self._probe()
+
+    def _install_embedding_hook(self):
+        def hook(_module, inputs, _output):
+            if self._capture and inputs:
+                self._embeddings.append(inputs[0].detach().float().cpu().numpy())
+
+        try:
+            self.model.backbone.conformer.fc5.register_forward_hook(hook)
+            self.has_embeddings = True
+        except Exception as error:
+            self.has_embeddings = False
+            log(f"[warn] 임베딩 훅 설치 실패: {type(error).__name__}: {error}")
 
     def _autocast(self):
         if self.use_bf16:
@@ -550,22 +633,45 @@ class DFArenaScorer:
             f"(batch_size={self.batch_size}) bf16={self.use_bf16} "
             f"fake_index={self.fake_index}")
 
-    def score(self, audio, kind=None):
+    def score(self, audio, kind=None, want_embeddings=False):
+        """세그먼트별 FAKE 확률을 집계해 돌려준다.
+
+        want_embeddings=True 면 (점수, (n_seg, dim) 임베딩) 을 돌려준다.
+        임베딩은 추론 과정에서 어차피 계산되는 값이라 추가 연산이 없다.
+        """
         if calculate_rms(audio) < SILENCE_RMS:
-            return 0.0
+            return (0.0, None) if want_embeddings else 0.0
+
+        capture = bool(want_embeddings) and self.has_embeddings
+        self._capture = capture
+        self._embeddings = []
 
         segments = make_segments(audio)
         scores = []
-        if self.batched:
-            tensor = torch.from_numpy(segments).to(self.device)
-            for start in range(0, tensor.shape[0], self.batch_size):
-                chunk = tensor[start:start + self.batch_size]
-                scores.extend(self._forward_batch(chunk).float().cpu().tolist())
-        else:
-            for segment in segments:
-                tensor = torch.from_numpy(segment).to(self.device)
-                scores.append(float(self._forward_single(tensor)))
-        return aggregate_segment_scores(scores, resolve_agg(kind))
+        try:
+            if self.batched:
+                tensor = torch.from_numpy(segments).to(self.device)
+                for start in range(0, tensor.shape[0], self.batch_size):
+                    chunk = tensor[start:start + self.batch_size]
+                    scores.extend(self._forward_batch(chunk).float().cpu().tolist())
+            else:
+                for segment in segments:
+                    tensor = torch.from_numpy(segment).to(self.device)
+                    scores.append(float(self._forward_single(tensor)))
+        finally:
+            self._capture = False
+
+        aggregated = aggregate_segment_scores(scores, resolve_agg(kind))
+        if not want_embeddings:
+            return aggregated
+
+        embeddings = None
+        if capture and self._embeddings:
+            stacked = np.concatenate(self._embeddings, axis=0)
+            if stacked.shape[0] == len(scores):     # 세그먼트 수와 일치할 때만 신뢰한다
+                embeddings = stacked
+        self._embeddings = []
+        return aggregated, embeddings
 
 
 # =============================================================================
@@ -602,7 +708,7 @@ def combine_file_fake_score(voice_fake, music_fake, voice_present, music_present
 # 7. 메인
 # =============================================================================
 
-def process_one_file(audio_path, panns, scorer, htdemucs, device):
+def process_one_file(audio_path, panns, scorer, htdemucs, device, music_probe=None):
     audio = load_audio_16k(audio_path)
     voice_present, music_present = predict_presence(panns, audio)
 
@@ -626,7 +732,17 @@ def process_one_file(audio_path, panns, scorer, htdemucs, device):
             voice_audio, music_audio = empty, audio
 
     voice_fake = scorer.score(voice_audio, kind="voice")
-    music_fake = scorer.score(music_audio, kind="music")
+
+    if music_probe is None:
+        music_fake = scorer.score(music_audio, kind="music")
+    else:
+        # 임베딩은 추론 중 어차피 만들어지므로 프로브 적용에 추가 연산이 없다.
+        music_fake, embeddings = scorer.score(music_audio, kind="music", want_embeddings=True)
+        if embeddings is not None and embeddings.shape[0] > 0:
+            probe_scores = music_probe.predict(embeddings).tolist()
+            probe_agg = aggregate_segment_scores(probe_scores, resolve_agg("music"))
+            blend = float(CONFIG["music_head_blend"])
+            music_fake = blend * probe_agg + (1.0 - blend) * music_fake
 
     fused = combine_file_fake_score(voice_fake, music_fake, voice_present, music_present)
     file_head = CONFIG["file_head"]
@@ -651,6 +767,10 @@ def process_one_file(audio_path, panns, scorer, htdemucs, device):
             file_fake = 0.5 * (direct + fused)
         else:                                   # direct_max
             file_fake = max(direct, fused)
+
+    # 진단 모드는 출력 직전에만 덮어쓴다. 위쪽 direct 재사용 로직을 건드리지 않기 위해서다.
+    if CONFIG.get("music_head") == "constant":
+        music_fake = float(CONFIG["music_constant"])
 
     return {
         "FILE_FAKE_PROB": file_fake,
@@ -680,6 +800,7 @@ def main():
     panns = load_panns_model(device)
     scorer = DFArenaScorer(device)
     htdemucs = load_htdemucs_model(device)
+    music_probe = load_music_probe()
     log(f"[info] 모델 로드 {time.perf_counter() - load_started:.1f}s")
 
     failures = []
@@ -691,7 +812,8 @@ def main():
             audio_path = id_to_path.get(audio_id)
             if audio_path is None:
                 raise FileNotFoundError(f"no file for ID {audio_id}")
-            result = process_one_file(audio_path, panns, scorer, htdemucs, device)
+            result = process_one_file(audio_path, panns, scorer, htdemucs, device,
+                                      music_probe)
         except Exception:
             # 한 파일의 실패가 1,200개 전체를 0점으로 만들지 않게 한다.
             failures.append(audio_id)

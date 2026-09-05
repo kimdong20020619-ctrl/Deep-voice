@@ -299,11 +299,13 @@ class FakeScorer:
         self.values = {"voice": voice, "music": music, None: direct}
         self.calls = []
 
-    def score(self, audio, kind=None):
+    def score(self, audio, kind=None, want_embeddings=False):
         self.calls.append(kind)
-        if audio.size <= 1:          # 실제 scorer 는 무음 게이트로 0.0 을 낸다
-            return 0.0
-        return self.values[kind]
+        value = 0.0 if audio.size <= 1 else self.values[kind]
+        if want_embeddings:
+            embeddings = None if audio.size <= 1 else np.ones((2, 4), dtype=np.float32)
+            return value, embeddings
+        return value
 
 
 def run_pipeline(m, voice_present, music_present, voice=0.8, music=0.3, direct=0.6):
@@ -397,6 +399,78 @@ def test_head_aggregation(m):
     m.CONFIG["segment_agg_music"] = None
 
 
+def test_music_probe(m):
+    print("\n[생성 음악 선형 프로브 — 실효 가중치 0.27]")
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "music_head.npz"
+
+        # w=[1,0,0,0], b=0 -> 첫 차원만 보는 프로브
+        np.savez(path, w=np.array([1.0, 0.0, 0.0, 0.0]), b=np.array([0.0]))
+        probe = m.MusicProbe(path)
+        out = probe.predict(np.array([[0.0, 9, 9, 9], [2.0, 0, 0, 0], [-2.0, 0, 0, 0]]))
+        check("logit 0 -> 0.5", abs(out[0] - 0.5) < 1e-12, str(out[0]))
+        check("양수 logit -> >0.5", out[1] > 0.5 and abs(out[1] - 1 / (1 + np.exp(-2))) < 1e-12)
+        check("음수 logit -> <0.5", out[2] < 0.5)
+        check("출력이 [0,1]", bool(((out >= 0) & (out <= 1)).all()))
+
+        # 극단 logit 에서 오버플로가 나지 않아야 한다
+        big = probe.predict(np.array([[1e6, 0, 0, 0], [-1e6, 0, 0, 0]]))
+        check("극단값에서 유한", bool(np.isfinite(big).all()), str(big))
+
+        # 표준화 필드 반영
+        np.savez(path, w=np.array([1.0, 0, 0, 0]), b=np.array([0.0]),
+                 mean=np.array([2.0, 0, 0, 0]), scale=np.array([2.0, 1, 1, 1]))
+        probe2 = m.MusicProbe(path)
+        got = probe2.predict(np.array([[6.0, 0, 0, 0]]))[0]
+        check("mean/scale 적용 ((6-2)/2=2)",
+              abs(got - 1 / (1 + np.exp(-2))) < 1e-12, str(got))
+
+    print("\n[프로브 통합 — 블렌드]")
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "music_head.npz"
+        np.savez(path, w=np.zeros(4), b=np.array([0.0]))   # 항상 0.5 를 내는 프로브
+        probe = m.MusicProbe(path)
+
+        m.CONFIG["file_head"] = "fusion"
+        m.CONFIG["demucs_gating"] = True
+        audio = np.full(64_000, 0.1, dtype=np.float32)
+        m.load_audio_16k = lambda p: audio
+        m.predict_presence = lambda panns, wav: (0.9, 0.9)
+        m.separate_voice_and_music = lambda wav, model, device: (audio, audio)
+
+        scorer = FakeScorer(0.8, 0.3, 0.6)
+        m.CONFIG["music_head_blend"] = 1.0
+        res = m.process_one_file(Path("x.wav"), None, scorer, None, None, probe)
+        check("blend=1.0 -> 프로브 값만", abs(res["MUSIC_FAKE_PROB"] - 0.5) < 1e-9,
+              str(res["MUSIC_FAKE_PROB"]))
+
+        scorer = FakeScorer(0.8, 0.3, 0.6)
+        m.CONFIG["music_head_blend"] = 0.5
+        res = m.process_one_file(Path("x.wav"), None, scorer, None, None, probe)
+        check("blend=0.5 -> 프로브와 DF-Arena 평균",
+              abs(res["MUSIC_FAKE_PROB"] - 0.5 * (0.5 + 0.3)) < 1e-9,
+              str(res["MUSIC_FAKE_PROB"]))
+
+        scorer = FakeScorer(0.8, 0.3, 0.6)
+        res = m.process_one_file(Path("x.wav"), None, scorer, None, None, None)
+        check("프로브 None -> 기존 동작 유지",
+              abs(res["MUSIC_FAKE_PROB"] - 0.3) < 1e-9, str(res["MUSIC_FAKE_PROB"]))
+        m.CONFIG["music_head_blend"] = 1.0
+
+    print("\n[진단 모드 — Music EER 단독 측정]")
+    m.CONFIG["file_head"] = "direct"
+    m.CONFIG["music_head"] = "constant"
+    m.CONFIG["music_constant"] = 0.5
+    scorer = FakeScorer(0.8, 0.3, 0.6)
+    res = m.process_one_file(Path("x.wav"), None, scorer, None, None, None)
+    check("MUSIC 이 상수로 고정", res["MUSIC_FAKE_PROB"] == 0.5, str(res["MUSIC_FAKE_PROB"]))
+    check("FILE 은 direct 유지 (음악에 비의존)",
+          abs(res["FILE_FAKE_PROB"] - 0.6) < 1e-9, str(res["FILE_FAKE_PROB"]))
+    check("VOICE 는 그대로", abs(res["VOICE_FAKE_PROB"] - 0.8) < 1e-9)
+    m.CONFIG["music_head"] = "none"
+    m.CONFIG["file_head"] = "fusion"
+
+
 def test_config_defaults(m):
     print("\n[기본 CONFIG = 베이스라인 동등성]")
     fresh = load_script()
@@ -404,7 +478,8 @@ def test_config_defaults(m):
     check("segment_agg == max", fresh.CONFIG["segment_agg"] == "max")
     check("short_pad == tile", fresh.CONFIG["short_pad"] == "tile")
     check("max_segments == 0", fresh.CONFIG["max_segments"] == 0)
-    check("file_head == fusion (베이스라인 동등)", fresh.CONFIG["file_head"] == "fusion")
+    check("file_head == direct (제출 #2)", fresh.CONFIG["file_head"] == "direct")
+    check("music_head == none (가중치 미학습)", fresh.CONFIG["music_head"] == "none")
     check("헤드별 집계 덮어쓰기 없음",
           fresh.CONFIG["segment_agg_voice"] is None and fresh.CONFIG["segment_agg_music"] is None)
     check("SEGMENT_SAMPLES == 64600", fresh.SEGMENT_SAMPLES == 64_600)
@@ -430,6 +505,7 @@ def main():
     test_gating_defaults(module)
     test_head_aggregation(module)
     test_file_head(module)
+    test_music_probe(module)
 
     print("\n" + "=" * 60)
     if FAILURES:
