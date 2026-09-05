@@ -1,0 +1,24 @@
+# 대회 데이터 — 재배포 금지
+data/raw/*
+data/synth/*
+!data/raw/.gitkeep
+!data/synth/.gitkeep
+
+# 모델 가중치 (제출 zip에만 동봉)
+submit/**/*.pt
+submit/**/*.pth
+submit/**/*.bin
+submit/**/*.safetensors
+submit/*.zip
+*.ckpt
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# OS
+Thumbs.db
+desktop.ini
