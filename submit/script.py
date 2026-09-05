@@ -55,11 +55,34 @@ CONFIG = {
     "fusion_gate": 0.5,      # gated_max에서 존재로 인정할 임계값
     "fusion_gamma": 0.5,     # gamma 모드의 지수
 
+    # FILE_FAKE_PROB 을 무엇으로 만들 것인가. 실효 가중치 0.45 로 단일 최대 항목이다.
+    #   "fusion"      : 성분 점수로부터 합성 (fusion_mode 적용)      <- 공식 베이스라인
+    #   "direct"      : 원본 오디오 전체를 DF-Arena 에 그대로 넣는다
+    #   "direct_max"  : max(direct, fusion)
+    #   "direct_mean" : 두 값의 평균
+    #
+    # 근거: DF-Arena 는 ASVspoof 계열로 학습된 **파일 단위** spoof 탐지기다.
+    # 원본 전체를 넣는 것이 그 학습 설정과 정확히 일치한다.
+    # 반면 fusion 은 (16k->44.1k 업샘플된) Demucs 스템 두 개를 채점하고 존재 확률을
+    # 곱한 뒤 max 를 취한다 — 단계마다 원 분포에서 멀어지고 순위가 왜곡된다.
+    # 다만 "하나라도 FAKE 면 파일 FAKE" 라는 정의상 성분 증거도 버릴 수 없어
+    # direct_max 가 둘을 모두 살린다.
+    #
+    # 비용: 게이팅으로 분리를 건너뛴 파일은 원본을 이미 채점했으므로 **추가 비용 0**.
+    #       혼합 파일만 DF-Arena 호출이 하나 늘어난다.
+    "file_head": "fusion",
+
     # 세그먼트 점수 집계. EER은 순위 기반이라 이상치 하나가 순위를 뒤집는다.
     # 다만 "순차 혼합"(앞은 음악, 뒤는 음성)에는 max가 유리한 면도 있다.
     #   "max" | "mean" | "topk_mean"
     "segment_agg": "max",
     "segment_topk": 2,
+
+    # 헤드별 집계 덮어쓰기. None 이면 segment_agg 를 따른다.
+    # 음악 위조 단서는 곡 전체에 퍼져 있고 음성 위조 단서는 국소적일 수 있어
+    # 서로 다른 집계가 맞을 수 있다. 음악은 실효 가중치 0.27 로 따로 조율할 값이 있다.
+    "segment_agg_voice": None,
+    "segment_agg_music": None,
 
     # SEGMENT_SAMPLES(4.0375초)보다 짧은 파일의 패딩.
     # 대회 최소 길이가 4초(64,000샘플)라 4.00~4.04초 파일이 여기 걸린다.
@@ -248,12 +271,21 @@ def make_segments(audio):
     return np.stack([extract_segment(audio, s) for s in get_segment_starts(audio.size)])
 
 
-def aggregate_segment_scores(scores):
+def resolve_agg(kind=None):
+    """헤드별 집계 모드. 덮어쓰기가 없으면 전역 segment_agg 를 쓴다."""
+    if kind is not None:
+        override = CONFIG.get(f"segment_agg_{kind}")
+        if override:
+            return override
+    return CONFIG["segment_agg"]
+
+
+def aggregate_segment_scores(scores, mode=None):
     """세그먼트 점수 집계. 한 파일 내부의 연산이므로 대회 규정에 저촉되지 않는다."""
     values = np.asarray(scores, dtype=np.float64)
     if values.size == 0:
         return 0.0
-    mode = CONFIG["segment_agg"]
+    mode = mode or CONFIG["segment_agg"]
     if mode == "mean":
         return float(values.mean())
     if mode == "topk_mean":
@@ -518,7 +550,7 @@ class DFArenaScorer:
             f"(batch_size={self.batch_size}) bf16={self.use_bf16} "
             f"fake_index={self.fake_index}")
 
-    def score(self, audio):
+    def score(self, audio, kind=None):
         if calculate_rms(audio) < SILENCE_RMS:
             return 0.0
 
@@ -533,7 +565,7 @@ class DFArenaScorer:
             for segment in segments:
                 tensor = torch.from_numpy(segment).to(self.device)
                 scores.append(float(self._forward_single(tensor)))
-        return aggregate_segment_scores(scores)
+        return aggregate_segment_scores(scores, resolve_agg(kind))
 
 
 # =============================================================================
@@ -593,9 +625,32 @@ def process_one_file(audio_path, panns, scorer, htdemucs, device):
         else:
             voice_audio, music_audio = empty, audio
 
-    voice_fake = scorer.score(voice_audio)
-    music_fake = scorer.score(music_audio)
-    file_fake = combine_file_fake_score(voice_fake, music_fake, voice_present, music_present)
+    voice_fake = scorer.score(voice_audio, kind="voice")
+    music_fake = scorer.score(music_audio, kind="music")
+
+    fused = combine_file_fake_score(voice_fake, music_fake, voice_present, music_present)
+    file_head = CONFIG["file_head"]
+
+    if file_head == "fusion":
+        file_fake = fused
+    else:
+        # 원본 전체를 DF-Arena 에 그대로 넣은 점수.
+        # 게이팅으로 분리를 건너뛴 파일은 원본이 곧 그 성분이라 이미 계산돼 있다.
+        # 단, 해당 헤드에 집계 덮어쓰기가 걸려 있으면 값이 달라지므로 재사용하지 않는다.
+        direct = None
+        if not need_separation:
+            reused_kind = "voice" if skip_reason == "voice_only" else "music"
+            if resolve_agg(reused_kind) == CONFIG["segment_agg"]:
+                direct = voice_fake if reused_kind == "voice" else music_fake
+        if direct is None:
+            direct = scorer.score(audio)
+
+        if file_head == "direct":
+            file_fake = direct
+        elif file_head == "direct_mean":
+            file_fake = 0.5 * (direct + fused)
+        else:                                   # direct_max
+            file_fake = max(direct, fused)
 
     return {
         "FILE_FAKE_PROB": file_fake,

@@ -292,6 +292,111 @@ def test_sample_submission(m):
             check("컬럼 누락 시 예외", True)
 
 
+class FakeScorer:
+    """DF-Arena 대역. kind 로 어떤 입력이 왔는지 구분하고 호출 횟수를 센다."""
+
+    def __init__(self, voice, music, direct):
+        self.values = {"voice": voice, "music": music, None: direct}
+        self.calls = []
+
+    def score(self, audio, kind=None):
+        self.calls.append(kind)
+        if audio.size <= 1:          # 실제 scorer 는 무음 게이트로 0.0 을 낸다
+            return 0.0
+        return self.values[kind]
+
+
+def run_pipeline(m, voice_present, music_present, voice=0.8, music=0.3, direct=0.6):
+    """process_one_file 을 GPU 없이 돌린다. 무거운 단계만 갈아끼운다."""
+    audio = np.full(64_000, 0.1, dtype=np.float32)
+    m.load_audio_16k = lambda path: audio
+    m.predict_presence = lambda panns, wav: (voice_present, music_present)
+    m.separate_voice_and_music = lambda wav, model, device: (
+        np.full(64_000, 0.1, dtype=np.float32), np.full(64_000, 0.1, dtype=np.float32))
+    scorer = FakeScorer(voice, music, direct)
+    result = m.process_one_file(Path("x.wav"), None, scorer, None, None)
+    return result, scorer
+
+
+def test_file_head(m):
+    print("\n[FILE_FAKE 헤드 — 실효 가중치 0.45]")
+    m.CONFIG["demucs_gating"] = True
+    m.CONFIG["gate_voice"] = 0.20
+    m.CONFIG["gate_music"] = 0.05
+    vf, mf, direct = 0.8, 0.3, 0.6
+
+    # --- 혼합 파일 (분리 수행) ---
+    m.CONFIG["file_head"] = "fusion"
+    res, sc = run_pipeline(m, 0.9, 0.9, vf, mf, direct)
+    fused = max(0.9 * vf, 0.9 * mf)
+    check("fusion: 베이스라인 값 유지", abs(res["FILE_FAKE_PROB"] - fused) < 1e-12,
+          f"got {res['FILE_FAKE_PROB']}")
+    check("fusion: DF-Arena 2회만 호출", sc.calls == ["voice", "music"], str(sc.calls))
+
+    m.CONFIG["file_head"] = "direct"
+    res, sc = run_pipeline(m, 0.9, 0.9, vf, mf, direct)
+    check("direct: 원본 점수", abs(res["FILE_FAKE_PROB"] - direct) < 1e-12,
+          f"got {res['FILE_FAKE_PROB']}")
+    check("direct: 혼합 파일은 3회 호출", sc.calls == ["voice", "music", None], str(sc.calls))
+
+    m.CONFIG["file_head"] = "direct_max"
+    res, _ = run_pipeline(m, 0.9, 0.9, vf, mf, direct)
+    check("direct_max = max(direct, fusion)",
+          abs(res["FILE_FAKE_PROB"] - max(direct, fused)) < 1e-12, f"got {res['FILE_FAKE_PROB']}")
+
+    m.CONFIG["file_head"] = "direct_mean"
+    res, _ = run_pipeline(m, 0.9, 0.9, vf, mf, direct)
+    check("direct_mean = 평균",
+          abs(res["FILE_FAKE_PROB"] - 0.5 * (direct + fused)) < 1e-12,
+          f"got {res['FILE_FAKE_PROB']}")
+
+    # --- 음성 단독 (게이팅으로 분리 생략) — 원본 재사용으로 추가 비용이 0이어야 한다 ---
+    m.CONFIG["file_head"] = "direct"
+    res, sc = run_pipeline(m, 0.9, 0.01, vf, mf, direct)
+    check("음성 단독: 분리 생략 시 원본 재사용 (추가 호출 없음)",
+          sc.calls == ["voice", "music"], str(sc.calls))
+    check("음성 단독: FILE == 음성 점수",
+          abs(res["FILE_FAKE_PROB"] - vf) < 1e-12, f"got {res['FILE_FAKE_PROB']}")
+    check("음성 단독: MUSIC_FAKE == 0", res["MUSIC_FAKE_PROB"] == 0.0)
+
+    # --- 음악 단독 ---
+    res, sc = run_pipeline(m, 0.01, 0.9, vf, mf, direct)
+    check("음악 단독: 추가 호출 없음", sc.calls == ["voice", "music"], str(sc.calls))
+    check("음악 단독: FILE == 음악 점수",
+          abs(res["FILE_FAKE_PROB"] - mf) < 1e-12, f"got {res['FILE_FAKE_PROB']}")
+    check("음악 단독: VOICE_FAKE == 0", res["VOICE_FAKE_PROB"] == 0.0)
+
+    # --- 집계 덮어쓰기가 걸리면 재사용하지 않아야 한다 ---
+    m.CONFIG["segment_agg_voice"] = "mean"
+    res, sc = run_pipeline(m, 0.9, 0.01, vf, mf, direct)
+    check("집계 덮어쓰기 시 재사용 금지 (원본 재계산)",
+          sc.calls == ["voice", "music", None], str(sc.calls))
+    m.CONFIG["segment_agg_voice"] = None
+
+    m.CONFIG["file_head"] = "fusion"
+    m.CONFIG["demucs_gating"] = True
+
+
+def test_head_aggregation(m):
+    print("\n[헤드별 집계 덮어쓰기]")
+    m.CONFIG["segment_agg"] = "max"
+    m.CONFIG["segment_agg_voice"] = None
+    m.CONFIG["segment_agg_music"] = None
+    check("덮어쓰기 없음 -> 전역값", m.resolve_agg("music") == "max")
+    check("kind 미지정 -> 전역값", m.resolve_agg() == "max")
+
+    m.CONFIG["segment_agg_music"] = "mean"
+    check("음악만 mean", m.resolve_agg("music") == "mean")
+    check("음성은 전역 유지", m.resolve_agg("voice") == "max")
+
+    scores = [0.1, 0.9, 0.4, 0.2]
+    check("명시 모드가 CONFIG 를 이긴다",
+          abs(m.aggregate_segment_scores(scores, "mean") - 0.4) < 1e-9)
+    check("모드 미지정이면 CONFIG",
+          abs(m.aggregate_segment_scores(scores) - 0.9) < 1e-9)
+    m.CONFIG["segment_agg_music"] = None
+
+
 def test_config_defaults(m):
     print("\n[기본 CONFIG = 베이스라인 동등성]")
     fresh = load_script()
@@ -299,6 +404,9 @@ def test_config_defaults(m):
     check("segment_agg == max", fresh.CONFIG["segment_agg"] == "max")
     check("short_pad == tile", fresh.CONFIG["short_pad"] == "tile")
     check("max_segments == 0", fresh.CONFIG["max_segments"] == 0)
+    check("file_head == fusion (베이스라인 동등)", fresh.CONFIG["file_head"] == "fusion")
+    check("헤드별 집계 덮어쓰기 없음",
+          fresh.CONFIG["segment_agg_voice"] is None and fresh.CONFIG["segment_agg_music"] is None)
     check("SEGMENT_SAMPLES == 64600", fresh.SEGMENT_SAMPLES == 64_600)
     check("SILENCE_RMS == 1e-5", fresh.SILENCE_RMS == 1e-5)
     check("컬럼명 5개 확정", fresh.PREDICTION_COLUMNS == [
@@ -320,6 +428,8 @@ def main():
     test_sample_submission(module)
     test_config_defaults(module)
     test_gating_defaults(module)
+    test_head_aggregation(module)
+    test_file_head(module)
 
     print("\n" + "=" * 60)
     if FAILURES:

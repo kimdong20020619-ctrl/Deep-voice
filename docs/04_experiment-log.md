@@ -95,15 +95,38 @@
 
 ### 계획된 A/B 순서
 
-`FILE_FAKE`(0.45) → `MUSIC_FAKE`(0.27) → `VOICE_FAKE`(0.18) 순으로 레버리지가 크다.
+실효 가중치 `FILE 0.45` > `MUSIC 0.27` > `VOICE 0.18` > `존재 0.10` 순으로 레버리지가 크다.
+구현 비용이 0에 가까운 것부터 소진한다.
 
-| 순서 | 변경 | 겨냥 | 비용 |
-|---|---|---|---|
-| #1 | 기준선 (게이팅 ON) | 전체 | 완료 |
-| #2 | `fusion_mode`: `baseline` → `gamma`(γ=0.5) 또는 `gated_max` | FILE 0.45 | ~0 |
-| #3 | `segment_agg`: `max` → `topk_mean` | 전 항목 | ~0 |
-| #4 | `short_pad`: `tile` → `zero` | 짧은 파일 오탐 | ~0 |
-| 이후 | 음악 위조도 전용 헤드 | MUSIC 0.27 + FILE 상당부분 | 큼 (P2~P3) |
+| 순서 | 변경 | 겨냥 | 비용 | 근거 |
+|---|---|---|---|---|
+| #1 | 기준선 (게이팅 ON, 나머지 베이스라인) | 전체 | 완료 | 기준점이 없으면 이후 실험을 해석할 수 없다 |
+| **#2** | **`file_head`: `fusion` → `direct_max`** | **FILE 0.45** | 단일성분 0 / 혼합 +1회 | DF-Arena 는 파일 단위 spoof 탐지기다. 원본 직접 투입이 학습 설정과 일치한다 → `09_model-survey.md` 4절 |
+| #3 | `file_head`: `direct_max` → `direct` | FILE 0.45 | 동일 | #2가 오르면 성분 증거 없이 순수 direct 가 더 나은지 확인 |
+| #4 | `segment_agg`: `max` → `topk_mean` | 전 항목 | 0 | EER은 순위 기반이라 단일 이상치에 취약하다 |
+| #5 | `segment_agg_music` 단독 조정 | MUSIC 0.27 | 0 | 음악 단서는 분산, 음성 단서는 국소일 수 있다 |
+| #6 | `short_pad`: `tile` → `zero` | 짧은 파일 | 0 | tile 이음매의 클릭이 오탐 요인 |
+| #7 | `fusion_mode`: `baseline` → `gamma`(γ=0.5) | FILE 0.45 | 0 | #2가 실패해 fusion 을 유지할 때의 대안 |
+| 이후 | 생성 음악 전용 헤드 | MUSIC 0.27 + FILE 상당부분 | 큼 | 기준선과 #2 결과를 보고 투자 여부 결정 → `09_model-survey.md` 2절 |
+
+**#2를 최우선에 두는 이유**: 가장 무거운 항목(0.45)을 가장 간접적으로 구하고 있었다.
+베이스라인은 16kHz를 44.1kHz로 업샘플 → Demucs 분리 → 스템 채점 → 존재확률 곱 → max 로
+FILE 을 합성한다. 단계마다 모델의 학습 분포에서 멀어진다.
+
+---
+
+## 모델 조사 (2026-09-05)
+
+전문은 [`09_model-survey.md`](09_model-survey.md).
+
+| 영역 | 판정 |
+|---|---|
+| 음성 위조 탐지 | **DF-Arena 1B 유지.** 공개 최대·최신이고, 가창·환경음까지 학습돼 이 과제에 유일하게 맞는다 |
+| 생성 음악 탐지 | `lofcz/ai-music-detector` **기각** (onnxruntime 미설치 + MP3 압축에 취약) · SONICS SpecTTTra **보류** (F1 0.76, 새 의존성, 과제 정의 불일치) |
+| 존재 탐지 | 조사 불필요. 이미 포화 |
+
+Speech DF Arena 리더보드 오픈소스 최상위가 pooled EER **15.68%** 이고,
+DACON 1위의 함의 평균 EER 이 **약 17.7%** 다. **선두도 zero-shot 공개 SOTA 대역에 있다.**
 
 ---
 

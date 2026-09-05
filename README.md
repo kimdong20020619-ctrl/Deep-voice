@@ -48,7 +48,10 @@ INPUT ─┬─ PANNs Cnn14 ─────────────> VOICE_PRESE
                                               융합 ─────> FILE_FAKE
 ```
 
-승부처는 **음악 위조도**다. DF-Arena 1B는 음성·가창·환경음으로 학습됐지만
+가장 무거운 항목은 `FILE_FAKE`(0.45)인데 베이스라인은 이를 **합성**으로 구한다.
+DF-Arena는 파일 단위 spoof 탐지기이므로 원본을 직접 넣는 경로(`file_head`)를 열어뒀다.
+
+그다음 승부처가 **음악 위조도**다. DF-Arena 1B는 음성·가창·환경음으로 학습됐지만
 **악기·반주 생성 음악은 학습 목록에 없다** → 이 컬럼이 도메인 밖이다.
 그 다음이 **데이터 합성**(전화채널·손실압축·한국어 TTS)이다.
 
@@ -65,6 +68,7 @@ INPUT ─┬─ PANNs Cnn14 ─────────────> VOICE_PRESE
 | 시간 | `demucs_gating` | 0.166 → 0.087 s/오디오초 (T4 실측) |
 | 시간 | DF-Arena 배치 + bf16 | 단일 경로와 편차 0.000000 |
 | 시간 | 단일 루프·모델 동시 상주 | 파일당 디코딩 1회 |
+| 점수 | `file_head` — FILE(0.45)을 원본에서 직접 채점 | DF-Arena는 파일 단위 탐지기다. 게이팅 시 추가 비용 0 |
 | 점수 | 융합식·집계·패딩 CONFIG화 | 기본값은 베이스라인과 동일. A/B용 |
 
 측정값과 근거는 [`docs/04_experiment-log.md`](docs/04_experiment-log.md).
@@ -108,6 +112,7 @@ data/       배포 데이터와 합성 학습셋 (git 제외)
 | [`06_scoring-and-submission.md`](docs/06_scoring-and-submission.md) | 평가 산식·제출 규격·서버 환경 |
 | [`07_baseline-code-review.md`](docs/07_baseline-code-review.md) | 베이스라인 `script.py` 줄 단위 리뷰 |
 | [`08_compliance.md`](docs/08_compliance.md) | 대회 규정 준수 점검 |
+| [`09_model-survey.md`](docs/09_model-survey.md) | 모델·지표 객관 조사와 채택 판정 |
 
 ## ⚠️ 이 레포에 넣지 않는 것
 
