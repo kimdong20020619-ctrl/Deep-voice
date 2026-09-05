@@ -77,10 +77,21 @@ DF-Arena는 파일 단위 spoof 탐지기이므로 원본을 직접 넣는 경�
 
 ```bash
 python src/eval/metric.py            # 대회 산식 자가검증 (리더보드 값 재현)
-python scripts/selftest_logic.py     # GPU 없이 순수 로직 검증 (60여 항목)
+python scripts/selftest_logic.py     # 추론 로직 검증 (70여 항목)
+python scripts/selftest_sweep.py     # 측정 도구·스윕 엔진·검증셋 합성 검증
 python scripts/build_submit.py       # 규격 검증 + submit.zip 생성
-python scripts/make_verify_bundle.py # Colab 검증용 번들 (250KB)
+python scripts/make_verify_bundle.py # Colab/Kaggle 공용 번들 (263KB)
 python scripts/make_verify_notebook.py  # notebooks/colab_verify.ipynb 재생성
+python scripts/make_valset_notebook.py  # notebooks/kaggle_valset.ipynb 재생성
+```
+
+**설정 실험은 리더보드가 아니라 검증셋에서 한다.**
+[`notebooks/kaggle_valset.ipynb`](notebooks/kaggle_valset.ipynb) 가 공개 데이터로 검증셋을 합성하고,
+설정 수십 개를 한 번에 비교해 순위를 낸다. 이긴 것만 제출한다.
+
+```
+[1회, GPU]  PANNs(vp,mp) + DF-Arena 세그먼트 점수 3종(원본/음성스템/음악스템)을 캐시
+[무한, CPU] gating · file_head · fusion_mode · segment_agg 조합을 캐시 위에서 즉시 평가
 ```
 
 GPU 검증은 [`notebooks/colab_verify.ipynb`](notebooks/colab_verify.ipynb)를 Colab에서 돌린다.
@@ -96,8 +107,8 @@ docs/       설계·규정·실측 기록 (2차 평가 보고서의 원본)
 scripts/    검증·빌드 도구
 submit/     제출 패키지 그대로 — model/ · script.py · requirements.txt
 notebooks/  Colab 검증
-src/eval/   대회 산식 구현 — 로컬 검증의 측정 도구
-src/        데이터 합성·학습 코드 (P2~P3에서 채운다)
+src/eval/   대회 산식 구현 + 설정 스윕 엔진
+src/synth/  검증셋 합성 (P3 학습 데이터로 확장 예정)
 data/       배포 데이터와 합성 학습셋 (git 제외)
 ```
 

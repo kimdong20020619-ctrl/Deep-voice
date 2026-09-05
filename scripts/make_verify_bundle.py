@@ -47,6 +47,14 @@ def main():
                 archive.write(path, rel)
                 picked.append((rel, path.stat().st_size))
 
+        # 검증셋 노트북이 쓰는 라이브러리 코드. 같은 번들로 Colab/Kaggle 둘 다 커버한다.
+        for path in sorted((REPO / "src").rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            rel = "src/" + path.relative_to(REPO / "src").as_posix()
+            archive.write(path, rel)
+            picked.append((rel, path.stat().st_size))
+
     print(f"{OUT.name}  {OUT.stat().st_size / 1024:.0f} KB, {len(picked)} 파일")
     for rel, size in picked:
         print(f"  {size / 1024:8.1f} KB  {rel}")
@@ -56,7 +64,9 @@ def main():
                      "model/panns/component_labels.json",
                      "model/panns/class_labels_indices.csv",
                      "model/SHA256SUMS.txt",
-                     "data/sample_submission.csv"):
+                     "data/sample_submission.csv",
+                     "src/eval/metric.py", "src/eval/sweep.py",
+                     "src/synth/build_valset.py"):
         assert required in names, f"번들에 {required} 가 빠졌다"
     print("\n필수 파일 확인 완료")
 

@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""검증셋에서 CONFIG 조합을 대량으로 비교한다.
+
+핵심 설계 — 비싼 계산은 한 번, 설정 스윕은 공짜:
+
+  [1회, GPU]  파일마다 PANNs(vp, mp) 와 DF-Arena 세그먼트 점수 3종
+              (원본 / 음성 스템 / 음악 스템) 을 캐시에 담는다.
+  [무한, CPU] gating · file_head · fusion_mode · segment_agg · 게이트 임계값 조합은
+              캐시 위에서 즉시 계산된다.
+
+스윕이 실제 추론과 어긋나지 않도록 **submit/script.py 의 process_one_file 을 그대로 호출**하고
+채점기만 캐시 기반으로 바꾼다. 로직을 베껴 쓰지 않으므로 divergence 가 생길 수 없다.
+
+주의: segment_agg 는 캐시된 세그먼트 점수 위에서 다시 계산되므로 스윕 가능하다.
+      반면 short_pad · max_segments 는 세그먼트 자체를 바꾸므로 캐시가 무효다.
+      그 둘은 precompute 를 다시 돌려야 한다.
+"""
+
+import copy
+import importlib.util
+from pathlib import Path
+
+import numpy as np
+
+from .metric import evaluate, format_result, score_delta_explained
+
+# 캐시된 오디오를 구분하는 표식. 길이로 구분하므로 서로 달라야 한다.
+MARK_ORIGINAL = 1000
+MARK_VOICE = 1001
+MARK_MUSIC = 1002
+
+
+def load_script(script_path):
+    spec = importlib.util.spec_from_file_location("submit_script", str(script_path))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _marker(size):
+    return np.full(size, 0.1, dtype=np.float32)
+
+
+class CachedScorer:
+    """DF-Arena 대역. 미리 계산해둔 세그먼트 점수를 표식으로 구분해 돌려준다."""
+
+    def __init__(self, script, entry):
+        self.script = script
+        self.entry = entry
+
+    def score(self, audio, kind=None, want_embeddings=False):
+        if audio.size <= 1:                      # 실제 채점기의 무음 게이트와 같은 동작
+            return (0.0, None) if want_embeddings else 0.0
+
+        if audio.size == MARK_VOICE:
+            scores = self.entry["voice_segments"]
+            embeddings = self.entry.get("voice_embeddings")
+        elif audio.size == MARK_MUSIC:
+            scores = self.entry["music_segments"]
+            embeddings = self.entry.get("music_embeddings")
+        else:
+            scores = self.entry["original_segments"]
+            embeddings = self.entry.get("original_embeddings")
+
+        value = self.script.aggregate_segment_scores(scores, self.script.resolve_agg(kind))
+        return (value, embeddings) if want_embeddings else value
+
+
+def precompute(script, label_rows, test_dir, panns, scorer, htdemucs, device,
+               want_embeddings=False, progress_every=25):
+    """파일마다 캐시 항목을 만든다. GPU 가 필요한 유일한 단계다.
+
+    게이팅 임계값을 스윕하려면 모든 파일의 스템 점수가 필요하므로
+    여기서는 게이팅과 무관하게 **항상 분리**한다.
+    """
+    import time
+
+    test_dir = Path(test_dir)
+    by_stem = {p.stem: p for p in test_dir.iterdir() if p.is_file()}
+
+    cache = []
+    started = time.perf_counter()
+    for index, row in enumerate(label_rows):
+        audio_id = row["ID"]
+        path = by_stem.get(audio_id)
+        if path is None:
+            print(f"[warn] 파일 없음: {audio_id}")
+            continue
+        try:
+            audio = script.load_audio_16k(path)
+            voice_present, music_present = script.predict_presence(panns, audio)
+            voice_audio, music_audio = script.separate_voice_and_music(audio, htdemucs, device)
+
+            entry = {"ID": audio_id, "vp": voice_present, "mp": music_present}
+            for name, wav in (("original", audio), ("voice", voice_audio), ("music", music_audio)):
+                segments = _segment_scores(script, scorer, wav, want_embeddings)
+                entry[f"{name}_segments"] = segments[0]
+                if want_embeddings:
+                    entry[f"{name}_embeddings"] = segments[1]
+            cache.append(entry)
+        except Exception as error:
+            print(f"[warn] {audio_id} 실패: {type(error).__name__}: {error}")
+
+        if progress_every and (index + 1) % progress_every == 0:
+            elapsed = time.perf_counter() - started
+            print(f"  {index + 1}/{len(label_rows)}  {elapsed:.0f}s "
+                  f"({elapsed / (index + 1):.2f}s/파일)")
+
+    print(f"캐시 {len(cache)}개 완성, {time.perf_counter() - started:.0f}s")
+    return cache
+
+
+def _segment_scores(script, scorer, audio, want_embeddings):
+    """세그먼트별 원점수를 뽑는다. 집계는 스윕 때 다시 하므로 여기서는 하지 않는다."""
+    if script.calculate_rms(audio) < script.SILENCE_RMS:
+        return [], None
+
+    import torch
+
+    segments = script.make_segments(audio)
+    scores = []
+    embeddings = []
+    scorer._capture = bool(want_embeddings) and getattr(scorer, "has_embeddings", False)
+    scorer._embeddings = []
+    try:
+        if scorer.batched:
+            tensor = torch.from_numpy(segments).to(scorer.device)
+            for start in range(0, tensor.shape[0], scorer.batch_size):
+                chunk = tensor[start:start + scorer.batch_size]
+                scores.extend(scorer._forward_batch(chunk).float().cpu().tolist())
+        else:
+            for segment in segments:
+                tensor = torch.from_numpy(segment).to(scorer.device)
+                scores.append(float(scorer._forward_single(tensor)))
+    finally:
+        if scorer._capture and scorer._embeddings:
+            embeddings = np.concatenate(scorer._embeddings, axis=0)
+        scorer._capture = False
+        scorer._embeddings = []
+    return scores, (embeddings if want_embeddings and len(embeddings) else None)
+
+
+def predict(script, cache, config, music_probe=None):
+    """캐시 위에서 한 설정의 5개 예측값을 만든다. 실제 process_one_file 을 그대로 쓴다."""
+    original_config = copy.deepcopy(script.CONFIG)
+    original_load = script.load_audio_16k
+    original_presence = script.predict_presence
+    original_separate = script.separate_voice_and_music
+
+    script.CONFIG.update(config)
+    columns = {name: [] for name in script.PREDICTION_COLUMNS}
+    ids = []
+
+    try:
+        for entry in cache:
+            script.load_audio_16k = lambda _path: _marker(MARK_ORIGINAL)
+            script.predict_presence = lambda _p, _a, e=entry: (e["vp"], e["mp"])
+            script.separate_voice_and_music = (
+                lambda _a, _m, _d: (_marker(MARK_VOICE), _marker(MARK_MUSIC)))
+
+            result = script.process_one_file(
+                Path(entry["ID"]), None, CachedScorer(script, entry), None, None, music_probe)
+            ids.append(entry["ID"])
+            for name in script.PREDICTION_COLUMNS:
+                columns[name].append(float(result[name]))
+    finally:
+        script.CONFIG.clear()
+        script.CONFIG.update(original_config)
+        script.load_audio_16k = original_load
+        script.predict_presence = original_presence
+        script.separate_voice_and_music = original_separate
+
+    return ids, {name: np.asarray(values) for name, values in columns.items()}
+
+
+def build_truth(label_rows, ids):
+    index = {row["ID"]: row for row in label_rows}
+    truth = {name: [] for name in
+             ["FILE_FAKE_PROB", "VOICE_FAKE_PROB", "MUSIC_FAKE_PROB",
+              "VOICE_PRESENT_PROB", "MUSIC_PRESENT_PROB"]}
+    for audio_id in ids:
+        row = index[audio_id]
+        for name in truth:
+            truth[name].append(int(row[name]))
+    return {name: np.asarray(values) for name, values in truth.items()}
+
+
+def sweep(script, cache, label_rows, configs, music_probe=None, baseline_name=None):
+    """설정 목록을 전부 평가하고 총점 내림차순으로 돌려준다."""
+    results = []
+    for name, config in configs:
+        ids, predictions = predict(script, cache, config, music_probe)
+        truth = build_truth(label_rows, ids)
+        result = evaluate(predictions, truth)
+        result["name"] = name
+        result["config"] = config
+        results.append(result)
+        print(format_result(result, name))
+
+    results.sort(key=lambda r: r["score"], reverse=True)
+
+    baseline = None
+    if baseline_name:
+        baseline = next((r for r in results if r["name"] == baseline_name), None)
+
+    print("\n" + "=" * 100)
+    print(f"{'순위':<4}{'설정':<26}{'Score':>9}{'ADS':>9}{'file':>8}{'voice':>8}{'music':>8}"
+          + ("   기준선 대비 분해" if baseline else ""))
+    print("-" * 100)
+    for rank, result in enumerate(results, 1):
+        line = (f"{rank:<4}{result['name']:<26}{result['score']:>9.5f}{result['ads']:>9.5f}"
+                f"{result['file_eer']:>8.4f}{result['voice_eer']:>8.4f}{result['music_eer']:>8.4f}")
+        if baseline is not None and result["name"] != baseline_name:
+            parts = score_delta_explained(baseline, result)
+            line += (f"   총 {parts['total']:+.5f}"
+                     f" (file {parts['file']:+.4f}, voice {parts['voice']:+.4f},"
+                     f" music {parts['music']:+.4f})")
+        print(line)
+    return results
+
+
+def default_grid():
+    """레버리지 순으로 배치한 기본 스윕 목록.
+
+    실효 가중치: FILE 0.45 · MUSIC 0.27 · VOICE 0.18 · 존재 0.10
+    """
+    grid = [
+        ("baseline(fusion)", {"file_head": "fusion", "fusion_mode": "baseline"}),
+        # FILE 0.45 — 가장 무거운 항목
+        ("file:direct", {"file_head": "direct"}),
+        ("file:direct_max", {"file_head": "direct_max"}),
+        ("file:direct_mean", {"file_head": "direct_mean"}),
+        ("fuse:noisy_or", {"file_head": "fusion", "fusion_mode": "noisy_or"}),
+        ("fuse:gamma0.5", {"file_head": "fusion", "fusion_mode": "gamma", "fusion_gamma": 0.5}),
+        ("fuse:gamma0.25", {"file_head": "fusion", "fusion_mode": "gamma", "fusion_gamma": 0.25}),
+        ("fuse:gated_max", {"file_head": "fusion", "fusion_mode": "gated_max"}),
+        # 세그먼트 집계 — 전 항목에 영향
+        ("agg:mean", {"segment_agg": "mean"}),
+        ("agg:topk2", {"segment_agg": "topk_mean", "segment_topk": 2}),
+        ("agg:topk3", {"segment_agg": "topk_mean", "segment_topk": 3}),
+        ("agg:music_mean", {"segment_agg_music": "mean"}),
+        # 게이팅 — 속도와 정확도를 함께 바꾼다
+        ("gate:off", {"demucs_gating": False}),
+        ("gate:m0.02", {"gate_music": 0.02}),
+        ("gate:m0.20", {"gate_music": 0.20}),
+        ("gate:v0.05", {"gate_voice": 0.05}),
+        ("gate:v0.40", {"gate_voice": 0.40}),
+    ]
+    return grid
+
+
+def cross_grid(best_config, extra):
+    """최고 설정 위에 추가 변형을 얹은 목록을 만든다 (2단계 스윕용)."""
+    out = []
+    for name, override in extra:
+        config = dict(best_config)
+        config.update(override)
+        out.append((name, config))
+    return out
