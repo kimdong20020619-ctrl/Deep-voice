@@ -12,6 +12,7 @@
 
 import argparse
 import ast
+import re
 import sys
 import zipfile
 from pathlib import Path
@@ -177,6 +178,86 @@ def check_script():
             fail(f"'{banned}' 발견 — 테스트셋 전체 통계를 쓰는 코드는 규정 위반(실격)이다")
 
 
+# 2026-09-05 Colab T4 실측 (docs/04_experiment-log.md). 평가 서버는 L4 라 실제로는 더 빠르다.
+# 즉 아래 추정은 **비관적 = 안전한 방향**이다.
+COST_SKIP = 0.059          # 게이팅으로 분리를 건너뛴 파일, s/오디오초
+COST_SEPARATE = 0.164      # 분리를 수행한 파일, s/오디오초
+COST_DIRECT = 0.059        # file_head 가 fusion 이 아닐 때 혼합 파일에 붙는 DF-Arena 호출
+TIME_BUDGET = 3600 - 35    # 60분에서 모델 로드(약 35초)를 뺀다
+EVAL_FILES = 1200
+
+# 제출 #1(2026-09-06, Score 0.69274)이 이 구성으로 실제 완주했다.
+# gate_music=0.05 라 게이트가 죽어 있었고 file_head=fusion 이었으므로 분리 생략률 0 이다.
+# 평가셋 평균 길이와 L4/T4 속도차를 몰라도 이 값 이하면 통과가 보장된다.
+PASSED_RATE = COST_SEPARATE   # 0.164 s/오디오초
+
+
+def check_runtime():
+    """CONFIG 로부터 추론 시간을 추정한다. 60분 초과는 실행 실패이고 제출 1회를 태운다."""
+    print("\n[5] 추론 시간 추정 (T4 실측 기준 · L4 는 더 빠르므로 안전한 방향)")
+    path = SUBMIT_DIR / "script.py"
+    if not path.is_file():
+        return
+    source = path.read_text(encoding="utf-8")
+
+    def setting(name, default=None):
+        match = re.search(rf'"{name}":\s*(True|False|"[^"]*"|[\d.]+)', source)
+        if not match:
+            return default
+        raw = match.group(1)
+        if raw in ("True", "False"):
+            return raw == "True"
+        return raw.strip('"') if raw.startswith('"') else float(raw)
+
+    gating = setting("demucs_gating", True)
+    file_head = setting("file_head", "fusion")
+    gate_music = setting("gate_music", 0.10)
+
+    # 음악 없는 파일의 MUSIC_PRESENT_PROB 실측이 0.060 이다.
+    # 임계값이 그 아래면 게이트가 절대 열리지 않는다.
+    if not gating:
+        skip_rate = 0.0
+        note = "게이팅 꺼짐"
+    elif gate_music is not None and gate_music <= 0.06:
+        skip_rate = 0.0
+        note = f"gate_music={gate_music} 가 잡음바닥 0.060 이하 — 게이트가 작동하지 않는다"
+        warn(note)
+    else:
+        skip_rate = 0.5        # 3종 혼재를 보수적으로 잡는다 (실측 시험셋은 0.83)
+        note = f"gate_music={gate_music}, 분리 생략률 {skip_rate:.0%} 가정"
+
+    per_second = skip_rate * COST_SKIP + (1 - skip_rate) * COST_SEPARATE
+    if file_head != "fusion":
+        per_second += (1 - skip_rate) * COST_DIRECT
+
+    print(f"         file_head={file_head} · {note}")
+    print(f"         추정 처리 속도 {per_second:.3f} s/오디오초")
+    print(f"         {'평균길이':>8} {'예상시간':>10}   판정")
+    risky = None
+    for avg in (10, 15, 20, 25, 30):
+        estimate = per_second * avg * EVAL_FILES
+        ratio = estimate / TIME_BUDGET
+        mark = "OK" if ratio < 0.75 else ("빠듯" if ratio < 1.0 else "초과")
+        if mark == "초과" and risky is None:
+            risky = avg
+        print(f"         {avg:>6}초 {estimate / 60:>9.1f}분   {mark}")
+
+    # 절대 시간보다 신뢰할 수 있는 기준이 있다.
+    # 제출 #1 이 0.164 s/오디오초 구성으로 **실제 리더보드에서 완주**했다
+    # (gate_music=0.05 라 게이트가 죽어 있었고 file_head=fusion 이었다).
+    # 평가셋 길이 분포와 L4 대 T4 속도차를 몰라도, 그 값 이하면 통과가 보장된다.
+    print(f"\n         기준선: 제출 #1 = {PASSED_RATE:.3f} s/오디오초 로 완주 확인")
+    if per_second <= PASSED_RATE:
+        ok(f"현재 {per_second:.3f} ≤ 기준선 {PASSED_RATE:.3f} — "
+           f"완주한 구성보다 {(1 - per_second / PASSED_RATE) * 100:.0f}% 가볍다. 시간 안전.")
+    else:
+        warn(f"현재 {per_second:.3f} > 기준선 {PASSED_RATE:.3f} — "
+             f"완주 확인된 구성보다 {(per_second / PASSED_RATE - 1) * 100:.0f}% 무겁다. "
+             f"gate_music 상향이나 max_segments 로 상쇄하라")
+        if risky is not None and risky <= 20:
+            warn(f"평균 {risky}초부터 60분을 넘길 수 있다")
+
+
 def check_sizes():
     print("\n[4] 용량")
     if not SUBMIT_DIR.is_dir():
@@ -229,6 +310,7 @@ def main():
     check_structure()
     check_requirements()
     check_script()
+    check_runtime()
     check_sizes()
 
     if not args.check_only and not problems:

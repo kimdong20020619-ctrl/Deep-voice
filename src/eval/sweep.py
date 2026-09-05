@@ -240,11 +240,15 @@ def default_grid():
         ("agg:topk2", {"segment_agg": "topk_mean", "segment_topk": 2}),
         ("agg:topk3", {"segment_agg": "topk_mean", "segment_topk": 3}),
         ("agg:music_mean", {"segment_agg_music": "mean"}),
-        # 게이팅 — 속도와 정확도를 함께 바꾼다
+        # 게이팅 임계값 — 속도와 정확도를 함께 바꾼다.
+        # 음악 없는 파일의 MUSIC_PRESENT_PROB 실측이 0.060 이라 0.05 이하는 게이트가 죽는다.
+        # 0.10 위쪽에서 어디가 최적인지가 실제 질문이다.
         ("gate:off", {"demucs_gating": False}),
-        ("gate:m0.02", {"gate_music": 0.02}),
+        ("gate:m0.05(무효)", {"gate_music": 0.05}),
         ("gate:m0.20", {"gate_music": 0.20}),
-        ("gate:v0.05", {"gate_voice": 0.05}),
+        ("gate:m0.30", {"gate_music": 0.30}),
+        ("gate:m0.50", {"gate_music": 0.50}),
+        ("gate:v0.10", {"gate_voice": 0.10}),
         ("gate:v0.40", {"gate_voice": 0.40}),
     ]
     return grid
