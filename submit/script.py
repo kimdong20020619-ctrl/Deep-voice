@@ -67,12 +67,21 @@ CONFIG = {
     #   "tile" | "zero" | "reflect"
     "short_pad": "tile",
 
-    # HTDemucs 게이팅. 음성 단독 파일에 분리를 걸면 시간도 쓰고
-    # 분리 아티팩트가 anti-spoofing 판정을 오염시킨다.
-    # False면 베이스라인과 동일하게 모든 파일을 분리한다.
-    "demucs_gating": False,
-    "gate_voice": 0.2,       # VP가 이 값 미만이면 음성 성분이 없다고 본다
-    "gate_music": 0.2,       # MP가 이 값 미만이면 음악 성분이 없다고 본다
+    # HTDemucs 게이팅. 성분이 하나뿐인 파일은 분리를 건너뛴다.
+    # 2026-09-05 T4 실측: 분리 생략 시 0.164 -> 0.059 s/오디오초 (2.8배).
+    # Demucs 와 DF-Arena 호출 하나가 동시에 사라지기 때문이다.
+    # 속도만이 아니라 분리 아티팩트를 안 만들어 정확도에도 유리하다.
+    "demucs_gating": True,
+    "gate_voice": 0.20,      # VP가 이 값 미만이면 음성 성분이 없다고 본다
+    # 음악 위조도는 실효 가중치 0.27 로 음성(0.18)보다 무겁다.
+    # 게이트를 잘못 닫으면 MUSIC_FAKE=0 이 되어 손실이 크므로 음악 쪽을 더 보수적으로 잡는다.
+    "gate_music": 0.05,
+
+    # 스템당 세그먼트 수 상한. 0 이면 무제한(=베이스라인).
+    # 60초 파일은 스템당 15세그먼트라 1B 모델을 30회 호출한다.
+    # 상한을 두면 긴 파일에서 크게 절약되지만 커버리지가 줄어 점수가 바뀐다.
+    # 파일 자신의 길이만으로 결정되므로 "파일 단위 독립 예측" 규정에 저촉되지 않는다.
+    "max_segments": 0,
 
     # ---- 점수 의미를 바꾸지 않는 항목 (기본 활성) ----
     "use_bf16": True,        # L4는 bf16 지원. fp32와 편차가 크면 자동으로 되돌린다.
@@ -193,6 +202,12 @@ def get_segment_starts(audio_length):
     starts = list(range(0, last_start + 1, SEGMENT_SAMPLES))
     if starts[-1] != last_start:
         starts.append(last_start)
+
+    cap = int(CONFIG.get("max_segments", 0))
+    if cap > 0 and len(starts) > cap:
+        # 균등 간격으로 솎아낸다. 이 파일의 길이만으로 결정되며 다른 파일과 무관하다.
+        picked = np.linspace(0, len(starts) - 1, cap).round().astype(int)
+        starts = [starts[i] for i in sorted(set(int(v) for v in picked))]
     return starts
 
 

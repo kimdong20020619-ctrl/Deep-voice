@@ -45,6 +45,16 @@ problems = []
 warnings = []
 
 
+def is_packaged(path):
+    """zip 에 넣을 파일인가. 규격 외 부산물이 섞이면 설치 오류가 난다."""
+    parts = path.relative_to(SUBMIT_DIR).parts
+    if any(part == "__pycache__" for part in parts):
+        return False
+    if any(part.startswith(".") for part in parts):
+        return False
+    return path.is_file()
+
+
 def fail(message):
     problems.append(message)
     print(f"  [FAIL] {message}")
@@ -171,7 +181,7 @@ def check_sizes():
     print("\n[4] 용량")
     if not SUBMIT_DIR.is_dir():
         return 0
-    files = [p for p in SUBMIT_DIR.rglob("*") if p.is_file()]
+    files = [p for p in SUBMIT_DIR.rglob("*") if is_packaged(p)]
     total = sum(p.stat().st_size for p in files)
     print(f"         파일 {len(files)}개, 압축 전 {human(total)}")
     if total > MAX_UNCOMPRESSED_BYTES:
@@ -186,7 +196,10 @@ def build_zip():
     if OUTPUT_ZIP.exists():
         OUTPUT_ZIP.unlink()
 
-    files = sorted(p for p in SUBMIT_DIR.rglob("*") if p.is_file())
+    files = sorted(p for p in SUBMIT_DIR.rglob("*") if is_packaged(p))
+    skipped = [p for p in SUBMIT_DIR.rglob("*") if p.is_file() and not is_packaged(p)]
+    if skipped:
+        print(f"         제외 {len(skipped)}개 (__pycache__ / 숨김 파일)")
     # 가중치는 이미 압축된 형식이라 재압축 이득이 거의 없다. STORED 가 훨씬 빠르다.
     with zipfile.ZipFile(OUTPUT_ZIP, "w", zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
         for path in files:

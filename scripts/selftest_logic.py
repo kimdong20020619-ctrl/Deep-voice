@@ -101,6 +101,40 @@ def test_segment_starts(m):
     check("마지막 세그먼트가 범위를 넘지 않음", starts[-1] + n == 960_000)
 
 
+def test_segment_cap(m):
+    print("\n[세그먼트 상한 max_segments]")
+    n = m.SEGMENT_SAMPLES
+    m.CONFIG["max_segments"] = 0
+    full = m.get_segment_starts(960_000)          # 1분
+    check("상한 0 -> 무제한(베이스라인)", len(full) == 15, f"got {len(full)}")
+
+    m.CONFIG["max_segments"] = 8
+    capped = m.get_segment_starts(960_000)
+    check("상한 8 적용", len(capped) <= 8, f"got {len(capped)}")
+    check("첫·끝 세그먼트 보존",
+          capped[0] == full[0] and capped[-1] == full[-1], f"{capped[0]},{capped[-1]}")
+    check("오름차순·중복 없음", capped == sorted(set(capped)))
+    check("범위 이탈 없음", all(0 <= c <= 960_000 - n for c in capped))
+    check("상한보다 짧으면 그대로", len(m.get_segment_starts(200_000)) == 4,
+          str(len(m.get_segment_starts(200_000))))
+    check("짧은 파일은 영향 없음", m.get_segment_starts(64_000) == [0])
+
+    # 상한을 걸어도 세그먼트 추출이 깨지지 않아야 한다
+    audio = np.zeros(960_000, dtype=np.float32)
+    check("make_segments 모양 일치", m.make_segments(audio).shape == (len(capped), n))
+    m.CONFIG["max_segments"] = 0
+
+
+def test_gating_defaults(m):
+    print("\n[게이팅 기본값 — 2026-09-05 실측 반영]")
+    fresh = load_script()
+    check("demucs_gating 기본 활성", fresh.CONFIG["demucs_gating"] is True)
+    check("gate_music < gate_voice (음악 0.27 > 음성 0.18 가중치)",
+          fresh.CONFIG["gate_music"] < fresh.CONFIG["gate_voice"],
+          f"music={fresh.CONFIG['gate_music']} voice={fresh.CONFIG['gate_voice']}")
+    check("max_segments 기본 0 (베이스라인 커버리지)", fresh.CONFIG["max_segments"] == 0)
+
+
 def test_padding(m):
     print("\n[짧은 파일 패딩]")
     n = m.SEGMENT_SAMPLES
@@ -260,7 +294,7 @@ def test_config_defaults(m):
     check("fusion_mode == baseline", fresh.CONFIG["fusion_mode"] == "baseline")
     check("segment_agg == max", fresh.CONFIG["segment_agg"] == "max")
     check("short_pad == tile", fresh.CONFIG["short_pad"] == "tile")
-    check("demucs_gating == False", fresh.CONFIG["demucs_gating"] is False)
+    check("max_segments == 0", fresh.CONFIG["max_segments"] == 0)
     check("SEGMENT_SAMPLES == 64600", fresh.SEGMENT_SAMPLES == 64_600)
     check("SILENCE_RMS == 1e-5", fresh.SILENCE_RMS == 1e-5)
     check("컬럼명 5개 확정", fresh.PREDICTION_COLUMNS == [
@@ -273,6 +307,7 @@ def main():
     module = load_script()
 
     test_segment_starts(module)
+    test_segment_cap(module)
     test_padding(module)
     test_aggregation(module)
     test_fusion(module)
@@ -280,6 +315,7 @@ def main():
     test_file_matching(module)
     test_sample_submission(module)
     test_config_defaults(module)
+    test_gating_defaults(module)
 
     print("\n" + "=" * 60)
     if FAILURES:

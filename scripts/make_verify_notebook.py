@@ -234,7 +234,16 @@ import pandas as pd, pathlib
 df = pd.read_csv(pathlib.Path("/content/submit/output/submission.csv"))
 print(df.to_string(index=False))
 assert df.shape == (3, 6), df.shape
-assert df.iloc[:, 1:].between(0, 1).all().all(), "확률이 [0,1] 범위를 벗어났다"
+values = df.iloc[:, 1:]          # DataFrame 에는 between() 이 없다. Series 메서드다.
+assert ((values >= 0) & (values <= 1)).all().all(), "확률이 [0,1] 범위를 벗어났다"
+assert values.notna().all().all(), "결측값이 있다"
+assert list(df.columns) == ["ID", "FILE_FAKE_PROB", "VOICE_FAKE_PROB", "MUSIC_FAKE_PROB",
+                            "VOICE_PRESENT_PROB", "MUSIC_PRESENT_PROB"], list(df.columns)
+
+# 융합식이 CONFIG["fusion_mode"]="baseline" 대로 계산됐는지 대조한다
+expected = (values["VOICE_PRESENT_PROB"] * values["VOICE_FAKE_PROB"]).combine(
+    values["MUSIC_PRESENT_PROB"] * values["MUSIC_FAKE_PROB"], max)
+assert (expected - values["FILE_FAKE_PROB"]).abs().max() < 1e-6, "FILE_FAKE 융합식 불일치"
 print("\\n형식 검사 통과")
 """)
 
