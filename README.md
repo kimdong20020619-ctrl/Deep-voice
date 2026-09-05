@@ -76,6 +76,7 @@ DF-Arena는 파일 단위 spoof 탐지기이므로 원본을 직접 넣는 경�
 ## 사용법
 
 ```bash
+python src/eval/metric.py            # 대회 산식 자가검증 (리더보드 값 재현)
 python scripts/selftest_logic.py     # GPU 없이 순수 로직 검증 (60여 항목)
 python scripts/build_submit.py       # 규격 검증 + submit.zip 생성
 python scripts/make_verify_bundle.py # Colab 검증용 번들 (250KB)
@@ -95,6 +96,7 @@ docs/       설계·규정·실측 기록 (2차 평가 보고서의 원본)
 scripts/    검증·빌드 도구
 submit/     제출 패키지 그대로 — model/ · script.py · requirements.txt
 notebooks/  Colab 검증
+src/eval/   대회 산식 구현 — 로컬 검증의 측정 도구
 src/        데이터 합성·학습 코드 (P2~P3에서 채운다)
 data/       배포 데이터와 합성 학습셋 (git 제외)
 ```
