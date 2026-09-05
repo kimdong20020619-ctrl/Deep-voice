@@ -15,9 +15,10 @@ sys.dont_write_bytecode = True
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 
-from selftest_logic import install_stubs          # noqa: E402  스텁 재사용
-from eval import sweep as sweep_mod               # noqa: E402
-from eval.metric import evaluate, score_delta_explained  # noqa: E402
+from selftest_logic import install_stubs
+
+from eval import sweep as sweep_mod
+from eval.metric import evaluate, score_delta_explained
 
 FAILURES = []
 

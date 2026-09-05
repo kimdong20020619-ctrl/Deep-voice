@@ -231,7 +231,7 @@ def test_fusion(m):
             value = m.combine_file_fake_score(a, b, c, d)
             worst_low = min(worst_low, value)
             worst_high = max(worst_high, value)
-        ok = 0.0 <= worst_low and worst_high <= 1.0
+        ok = worst_low >= 0.0 and worst_high <= 1.0
         check(f"{mode}: 출력이 [0,1]", ok, f"min={worst_low:.4f} max={worst_high:.4f}")
         if not ok:
             bad[mode] = (worst_low, worst_high)

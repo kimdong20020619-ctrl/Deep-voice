@@ -1,0 +1,38 @@
+# ruff 설정 — 신호만 남기고 소음을 끈다.
+# 기본값 그대로 두면 의도한 설계까지 경고로 뜨고, 그러면 아무도 안 보게 된다.
+
+line-length = 100
+target-version = "py311"        # 평가 서버가 Python 3.11.15 다
+
+# 노트북은 scripts/make_*_notebook.py 가 생성한다. 원본을 고쳐야지 산출물을 고치면 덮어써진다.
+exclude = ["notebooks"]
+
+[lint]
+# 버그를 잡는 규칙만 켠다. 복잡도 규칙(PLR*)은 껐다 —
+# 추론 스크립트의 main() 이 길다는 경고는 이 프로젝트에서 신호가 아니다.
+select = ["E", "F", "W", "I", "B", "UP", "C4", "SIM", "RUF", "PLE", "PLW"]
+
+ignore = [
+    # 한글 환경에서는 인코딩 선언을 명시한다 (~/.claude/rules/python.md)
+    "UP009",
+
+    # 파일 단위 broad except 는 이 대회의 핵심 설계다.
+    # 1,200개 중 한 파일이 실패해도 전체가 0점이 되지 않게 막는 장치이고,
+    # 실패 ID 와 트레이스백을 로그에 남긴다. docs/07_baseline-code-review.md 1절 참조.
+    "BLE001",
+
+    # 한글 문서·주석에 ×, ·, → 를 쓴다. 오타가 아니다.
+    "RUF001", "RUF002", "RUF003",
+]
+
+[lint.per-file-ignores]
+# submit/script.py 는 torch import 전에 오프라인 환경변수를 설정해야 한다.
+# HF_HUB_OFFLINE 을 나중에 설정하면 평가 서버(인터넷 차단)에서 다운로드를 시도한다.
+"submit/script.py" = ["E402"]
+# 자체 검사 스크립트는 스텁 주입 때문에 import 순서를 지킬 수 없다.
+"scripts/selftest_*.py" = ["B023", "E402"]
+# 노트북 생성기는 문자열 안에 코드가 들어간다.
+"scripts/make_*_notebook.py" = ["E501"]
+
+[lint.isort]
+known-first-party = ["eval", "synth"]
