@@ -17,6 +17,10 @@ from pathlib import Path
 
 import numpy as np
 
+# script.py 를 import 하면 submit/__pycache__ 가 생기고, 그게 제출 zip 에 섞이면
+# 규격 외 최상위 항목이 되어 설치 오류가 난다. 아예 만들지 않는다.
+sys.dont_write_bytecode = True
+
 REPO = Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "submit" / "script.py"
 

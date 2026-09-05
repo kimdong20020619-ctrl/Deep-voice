@@ -9,6 +9,8 @@ data/synth/*
 submit/model/
 submit/*.zip
 submit.zip
+
+# 검증 번들 — scripts/make_verify_bundle.py 로 언제든 재생성한다
 verify_bundle.zip
 
 # 학습 산출 가중치
