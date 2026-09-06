@@ -92,9 +92,23 @@ def evaluate(predictions, truth):
     music_auc = roc_auc_score(music_present, predictions["MUSIC_PRESENT_PROB"])
     cps = 0.5 * voice_auc + 0.5 * music_auc
 
+    # 검증셋에 한쪽 클래스가 없으면 그 EER 이 nan 이고 총점 전체가 nan 으로 오염된다.
+    # 공식 총점은 손대지 않고, 계산 가능한 항목만 재정규화한 비교용 점수를 따로 낸다.
+    usable = {name: (weight, eer) for name, weight, eer in (
+        ("file", ADS_FILE_WEIGHT, file_eer),
+        ("voice", ADS_VOICE_WEIGHT, voice_eer),
+        ("music", ADS_MUSIC_WEIGHT, music_eer),
+    ) if not np.isnan(eer)}
+    weight_sum = sum(weight for weight, _ in usable.values())
+    ads_partial = (sum(weight * (1 - eer) for weight, eer in usable.values()) / weight_sum
+                   if weight_sum else float("nan"))
+
     return {
         "score": SCORE_ADS_WEIGHT * ads + SCORE_CPS_WEIGHT * cps,
+        "score_partial": SCORE_ADS_WEIGHT * ads_partial + SCORE_CPS_WEIGHT * cps,
         "ads": float(ads),
+        "ads_partial": float(ads_partial),
+        "partial_terms": sorted(usable),
         "cps": float(cps),
         "file_eer": file_eer,
         "voice_eer": voice_eer,
@@ -107,7 +121,20 @@ def evaluate(predictions, truth):
     }
 
 
+def rank_score(result):
+    """순위용 점수. 공식 총점이 nan 이면 재정규화 점수로 대체한다."""
+    score = result["score"]
+    return score if not np.isnan(score) else result["score_partial"]
+
+
 def format_result(result, label=""):
+    if np.isnan(result["score"]):
+        return (
+            f"{label:24s} Score* {result['score_partial']:.5f} "
+            f"({'+'.join(result['partial_terms'])} 재정규화) "
+            f"|| EER  file {result['file_eer']:.4f} "
+            f"voice {result['voice_eer']:.4f} music {result['music_eer']:.4f}"
+        )
     return (
         f"{label:24s} Score {result['score']:.5f} | ADS {result['ads']:.5f} "
         f"| CPS {result['cps']:.5f} || EER  file {result['file_eer']:.4f} "
@@ -120,10 +147,17 @@ def score_delta_explained(before, after):
 
     어떤 변경이 어디를 움직였는지 보려면 이 분해가 필요하다.
     """
+    def delta(weight, key):
+        # 양쪽 다 측정 불가면 그 항목은 변하지 않은 것이다. 한쪽만 nan 이면 숨기지 않는다.
+        gap = before[key] - after[key]
+        if np.isnan(before[key]) and np.isnan(after[key]):
+            gap = 0.0
+        return SCORE_ADS_WEIGHT * weight * gap
+
     parts = {
-        "file": SCORE_ADS_WEIGHT * ADS_FILE_WEIGHT * (before["file_eer"] - after["file_eer"]),
-        "voice": SCORE_ADS_WEIGHT * ADS_VOICE_WEIGHT * (before["voice_eer"] - after["voice_eer"]),
-        "music": SCORE_ADS_WEIGHT * ADS_MUSIC_WEIGHT * (before["music_eer"] - after["music_eer"]),
+        "file": delta(ADS_FILE_WEIGHT, "file_eer"),
+        "voice": delta(ADS_VOICE_WEIGHT, "voice_eer"),
+        "music": delta(ADS_MUSIC_WEIGHT, "music_eer"),
         "presence": SCORE_CPS_WEIGHT * (after["cps"] - before["cps"]),
     }
     parts["total"] = sum(parts.values())

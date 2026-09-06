@@ -23,7 +23,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .metric import evaluate, format_result, score_delta_explained
+from .metric import evaluate, format_result, rank_score, score_delta_explained
 
 # 캐시된 오디오를 구분하는 표식. 길이로 구분하므로 서로 달라야 한다.
 MARK_ORIGINAL = 1000
@@ -208,18 +208,23 @@ def sweep(script, cache, label_rows, configs, music_probe=None, baseline_name=No
         results.append(result)
         print(format_result(result, name))
 
-    results.sort(key=lambda r: r["score"], reverse=True)
+    results.sort(key=rank_score, reverse=True)
 
     baseline = None
     if baseline_name:
         baseline = next((r for r in results if r["name"] == baseline_name), None)
 
     print("\n" + "=" * 100)
-    print(f"{'순위':<4}{'설정':<26}{'Score':>9}{'ADS':>9}{'file':>8}{'voice':>8}{'music':>8}"
+    partial = any(np.isnan(r["score"]) for r in results)
+    if partial:
+        print("주의: 측정 불가한 EER 이 있어 Score* 는 가능한 항목만 재정규화한 값이다")
+    print(f"{'순위':<4}{'설정':<26}{'Score*' if partial else 'Score':>9}{'ADS':>9}"
+          f"{'file':>8}{'voice':>8}{'music':>8}"
           + ("   기준선 대비 분해" if baseline else ""))
     print("-" * 100)
     for rank, result in enumerate(results, 1):
-        line = (f"{rank:<4}{result['name']:<26}{result['score']:>9.5f}{result['ads']:>9.5f}"
+        line = (f"{rank:<4}{result['name']:<26}{rank_score(result):>9.5f}"
+                f"{result['ads_partial'] if partial else result['ads']:>9.5f}"
                 f"{result['file_eer']:>8.4f}{result['voice_eer']:>8.4f}{result['music_eer']:>8.4f}")
         if baseline is not None and result["name"] != baseline_name:
             parts = score_delta_explained(baseline, result)
