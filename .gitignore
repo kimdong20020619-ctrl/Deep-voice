@@ -7,11 +7,12 @@ data/synth/*
 # 대회 배포 모델 일체. DF-Arena 1B 는 비영리 라이선스이고 대회 배포물이므로
 # 공개 저장소 재배포는 라이선스 위반이자 배포물 재배포다. 폴더째 제외한다.
 submit/model/
-submit/*.zip
-submit.zip
 
-# 검증 번들 — scripts/make_verify_bundle.py 로 언제든 재생성한다
-verify_bundle.zip
+# 제출물·검증 번들 zip 은 전부 스크립트로 재생성되는 산출물이다.
+# 이름을 하나씩 적으면 새 이름이 생길 때마다 샌다 — 2026-09-07 에 실제로
+# submit_diag.zip(5.17GB)이 커밋돼 GitHub 100MB 제한에 막혔다. 패턴으로 막는다.
+/*.zip
+submit/*.zip
 
 # 학습 산출 가중치
 *.pt

@@ -272,28 +272,28 @@ def check_sizes():
     return total
 
 
-def build_zip():
+def build_zip(output=OUTPUT_ZIP):
     print("\n[5] zip 생성")
-    if OUTPUT_ZIP.exists():
-        OUTPUT_ZIP.unlink()
+    if output.exists():
+        output.unlink()
 
     files = sorted(p for p in SUBMIT_DIR.rglob("*") if is_packaged(p))
     skipped = [p for p in SUBMIT_DIR.rglob("*") if p.is_file() and not is_packaged(p)]
     if skipped:
         print(f"         제외 {len(skipped)}개 (__pycache__ / 숨김 파일)")
     # 가중치는 이미 압축된 형식이라 재압축 이득이 거의 없다. STORED 가 훨씬 빠르다.
-    with zipfile.ZipFile(OUTPUT_ZIP, "w", zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
         for path in files:
             archive.write(path, path.relative_to(SUBMIT_DIR).as_posix())
 
-    size = OUTPUT_ZIP.stat().st_size
-    print(f"         {OUTPUT_ZIP} — {human(size)}")
+    size = output.stat().st_size
+    print(f"         {output} — {human(size)}")
     if size > MAX_ZIP_BYTES:
         fail(f"zip 이 10GB 초과: {human(size)}")
     else:
         ok(f"zip 10GB 이내 ({human(size)})")
 
-    with zipfile.ZipFile(OUTPUT_ZIP) as archive:
+    with zipfile.ZipFile(output) as archive:
         roots = {name.split("/")[0] for name in archive.namelist()}
     if roots <= REQUIRED_TOP_LEVEL:
         ok(f"zip 루트 = {sorted(roots)}")
@@ -304,6 +304,8 @@ def build_zip():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--check-only", action="store_true", help="zip 을 만들지 않고 검증만")
+    # 진단 제출처럼 임시 구성을 묶을 때 기존 submit.zip 을 덮어쓰지 않기 위한 것이다.
+    parser.add_argument("--out", type=Path, default=OUTPUT_ZIP, help="zip 출력 경로")
     args = parser.parse_args()
 
     print(f"대상: {SUBMIT_DIR}")
@@ -314,7 +316,7 @@ def main():
     check_sizes()
 
     if not args.check_only and not problems:
-        build_zip()
+        build_zip(args.out)
     elif problems:
         print("\n[5] zip 생성 건너뜀 — 먼저 위 실패 항목을 고쳐라")
 
