@@ -192,6 +192,22 @@ EVAL_FILES = 1200
 PASSED_RATE = COST_SEPARATE   # 0.164 s/오디오초
 
 
+def _print_time_table(per_second):
+    """평균 길이별 예상 시간. 평가셋 길이 분포를 모르므로 구간으로 낸다.
+
+    반환: 60분을 처음 넘기는 평균 길이 (없으면 None)
+    """
+    risky = None
+    for avg in (10, 15, 20, 25, 30):
+        estimate = per_second * avg * EVAL_FILES
+        ratio = estimate / TIME_BUDGET
+        mark = "OK" if ratio < 0.75 else ("빠듯" if ratio < 1.0 else "초과")
+        if mark == "초과" and risky is None:
+            risky = avg
+        print(f"         {avg:>6}초 {estimate / 60:>9.1f}분   {mark}")
+    return risky
+
+
 def check_runtime():
     """CONFIG 로부터 추론 시간을 추정한다. 60분 초과는 실행 실패이고 제출 1회를 태운다."""
     print("\n[5] 추론 시간 추정 (T4 실측 기준 · L4 는 더 빠르므로 안전한 방향)")
@@ -212,6 +228,24 @@ def check_runtime():
     gating = setting("demucs_gating", True)
     file_head = setting("file_head", "fusion")
     gate_music = setting("gate_music", 0.10)
+    pipeline = setting("pipeline", "separate")
+
+    # 새 구조는 분리하지 않고 원본을 한 번만 채점한다 — 파일 유형과 무관하게 같은 비용이다.
+    # 다만 세 헤드 npz 가 전부 있어야 실제로 켜진다. 없으면 script.py 가 조용히
+    # separate 로 돌아가므로, 여기서도 파일 유무를 보고 판정한다.
+    heads_present = all((SUBMIT_DIR / "model" / f"head_{name}.npz").is_file()
+                        for name in ("file", "voice", "music"))
+    if pipeline == "direct" and heads_present:
+        per_second = COST_SKIP
+        print(f"         pipeline=direct — 분리 없음, 원본 1회 채점")
+        print(f"         추정 처리 속도 {per_second:.3f} s/오디오초")
+        print(f"         {'평균길이':>8} {'예상시간':>10}   판정")
+        _print_time_table(per_second)
+        ok(f"분리 경로(0.164) 대비 {(1 - per_second / COST_SEPARATE) * 100:.0f}% 가볍다")
+        return
+    if pipeline == "direct" and not heads_present:
+        warn("pipeline=direct 이지만 model/head_*.npz 가 없다 — "
+             "실행 시 분리 경로로 되돌아간다. 아래는 그 기준의 추정이다")
 
     # 음악 없는 파일의 MUSIC_PRESENT_PROB 실측이 0.060 이다.
     # 임계값이 그 아래면 게이트가 절대 열리지 않는다.
@@ -233,14 +267,7 @@ def check_runtime():
     print(f"         file_head={file_head} · {note}")
     print(f"         추정 처리 속도 {per_second:.3f} s/오디오초")
     print(f"         {'평균길이':>8} {'예상시간':>10}   판정")
-    risky = None
-    for avg in (10, 15, 20, 25, 30):
-        estimate = per_second * avg * EVAL_FILES
-        ratio = estimate / TIME_BUDGET
-        mark = "OK" if ratio < 0.75 else ("빠듯" if ratio < 1.0 else "초과")
-        if mark == "초과" and risky is None:
-            risky = avg
-        print(f"         {avg:>6}초 {estimate / 60:>9.1f}분   {mark}")
+    risky = _print_time_table(per_second)
 
     # 절대 시간보다 신뢰할 수 있는 기준이 있다.
     # 제출 #1 이 0.164 s/오디오초 구성으로 **실제 리더보드에서 완주**했다

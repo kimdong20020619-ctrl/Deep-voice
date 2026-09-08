@@ -117,6 +117,22 @@ CONFIG = {
     "music_head": "none",
     "music_constant": 0.5,
 
+    # 파이프라인 구조. "separate" | "direct"
+    #
+    #   separate : PANNs -> HTDemucs 분리 -> 스템마다 DF-Arena -> 규칙 융합  (베이스라인)
+    #   direct   : 원본 한 번만 채점하고 학습한 헤드 3개로 세 판정을 동시에
+    #
+    # direct 는 model/head_{file,voice,music}.npz 가 **전부** 있을 때만 켜진다.
+    # 하나라도 없으면 자동으로 separate 로 돌아간다 — 섞이면 점수 해석이 불가능하다.
+    #
+    # 분리를 끄면 0.164 -> 0.059 s/오디오초. 속도는 점수에 반영되지 않으므로
+    # 남는 예산은 세그먼트 겹침 같은 정확도 쪽으로 돌린다.
+    "pipeline": "separate",
+
+    # 학습한 Conformer 가중치(model/backend_ft.pt) 사용 여부. "auto" | "off"
+    # 파일이 없으면 대회 배포본 그대로 돈다.
+    "backend_ft": "auto",
+
     # VOICE 진단 (실효 가중치 0.18). "none" | "constant"
     #
     # music_head="constant" 와 같은 방식으로 Voice EER 을 단독 역산한다.
@@ -597,6 +613,83 @@ def load_file_probe():
     return load_probe("file_head.npz", "파일", "file_probe_blend")
 
 
+# 새 구조 — 혼합 오디오에서 세 판정을 직접 낸다 (분리 없음).
+# 학습한 Conformer 가 비선형을 담당하므로 헤드는 선형 하나로 충분하다.
+# 임베딩은 fc5 훅에서 어차피 나오므로 헤드 적용에 추가 연산이 없고 새 의존성도 없다.
+MULTIHEAD_FILES = {
+    "FILE_FAKE_PROB": "head_file.npz",
+    "VOICE_FAKE_PROB": "head_voice.npz",
+    "MUSIC_FAKE_PROB": "head_music.npz",
+}
+
+
+def load_multihead():
+    """세 헤드가 **전부** 있을 때만 활성화한다.
+
+    일부만 있으면 나머지 축이 조용히 베이스라인으로 돌아 두 방식이 섞인다.
+    그 상태의 점수는 해석이 불가능하므로 아예 켜지 않는다.
+    """
+    if CONFIG.get("pipeline") != "direct":
+        return None
+    heads = {}
+    for column, filename in MULTIHEAD_FILES.items():
+        path = MODEL_DIR / filename
+        if not path.is_file():
+            log(f"[info] pipeline=direct 이지만 model/{filename} 이 없다. 분리 경로로 돌아간다.")
+            return None
+        try:
+            heads[column] = LinearProbe(path)
+        except Exception as error:
+            log(f"[warn] {filename} 로드 실패, 분리 경로로 돌아간다: "
+                f"{type(error).__name__}: {error}")
+            return None
+    log(f"[info] 다중 헤드 로드: dim={heads['FILE_FAKE_PROB'].w.size} — 분리 없이 채점한다")
+    return heads
+
+
+def load_backend_finetune(scorer):
+    """학습한 Conformer 가중치를 원본 위에 덮어쓴다. 없으면 배포본 그대로 쓴다.
+
+    파일 하나 빠졌다고 추론이 죽으면 하루 3회 중 1회를 태운다. 조용히 원복한다.
+    """
+    path = MODEL_DIR / "backend_ft.pt"
+    if CONFIG.get("backend_ft") == "off" or not path.is_file():
+        return False
+    try:
+        state = torch.load(path, map_location=scorer.device, weights_only=True)
+        missing, unexpected = scorer.model.backbone.conformer.load_state_dict(
+            state, strict=False)
+        if missing or unexpected:
+            log(f"[warn] Conformer 가중치 불일치 — missing {len(missing)} "
+                f"unexpected {len(unexpected)}. 배포본 그대로 쓴다.")
+            return False
+        log(f"[info] 학습한 Conformer 로드: {path.name}")
+        return True
+    except Exception as error:
+        log(f"[warn] Conformer 로드 실패, 배포본 그대로 쓴다: "
+            f"{type(error).__name__}: {error}")
+        return False
+
+
+def process_one_file_direct(audio, voice_present, music_present, scorer, multihead):
+    """분리하지 않고 원본 한 번만 채점해 세 판정을 낸다.
+
+    분리는 추론 시간의 2/3 를 쓰고(0.164 vs 0.059 s/오디오초), 16k->44.1k->16k 왕복이
+    DF-Arena 가 학습에서 본 적 없는 분포를 만든다. 학습 데이터를 우리가 합성하므로
+    혼합 파일에도 성분별 정답이 있고, 그래서 모델이 혼합에서 직접 배울 수 있다.
+    """
+    _, embeddings = scorer.score(audio, want_embeddings=True)
+    result = {"VOICE_PRESENT_PROB": voice_present, "MUSIC_PRESENT_PROB": music_present}
+    for column, head in multihead.items():
+        if embeddings is None or embeddings.shape[0] == 0:
+            result[column] = 0.0
+            continue
+        kind = {"VOICE_FAKE_PROB": "voice", "MUSIC_FAKE_PROB": "music"}.get(column)
+        result[column] = aggregate_segment_scores(
+            head.predict(embeddings).tolist(), resolve_agg(kind))
+    return result
+
+
 class DFArenaScorer:
     def __init__(self, device):
         if str(MODEL_DIR) not in sys.path:
@@ -796,9 +889,13 @@ def combine_file_fake_score(voice_fake, music_fake, voice_present, music_present
 # =============================================================================
 
 def process_one_file(audio_path, panns, scorer, htdemucs, device,
-                     music_probe=None, file_probe=None):
+                     music_probe=None, file_probe=None, multihead=None):
     audio = load_audio_16k(audio_path)
     voice_present, music_present = predict_presence(panns, audio)
+
+    if multihead is not None:
+        return process_one_file_direct(audio, voice_present, music_present,
+                                       scorer, multihead)
 
     need_separation = True
     skip_reason = None
@@ -923,6 +1020,9 @@ def main():
     htdemucs = load_htdemucs_model(device)
     music_probe = load_music_probe()
     file_probe = load_file_probe()
+    multihead = load_multihead()
+    if multihead is not None:
+        load_backend_finetune(scorer)
     log(f"[info] 모델 로드 {time.perf_counter() - load_started:.1f}s")
 
     failures = []
@@ -935,7 +1035,7 @@ def main():
             if audio_path is None:
                 raise FileNotFoundError(f"no file for ID {audio_id}")
             result = process_one_file(audio_path, panns, scorer, htdemucs, device,
-                                      music_probe, file_probe)
+                                      music_probe, file_probe, multihead)
         except Exception:
             # 한 파일의 실패가 1,200개 전체를 0점으로 만들지 않게 한다.
             failures.append(audio_id)

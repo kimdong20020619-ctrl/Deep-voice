@@ -487,6 +487,71 @@ def test_music_probe(m):
               abs(res["MUSIC_FAKE_PROB"] - 0.3) < 1e-9, str(res["MUSIC_FAKE_PROB"]))
         m.CONFIG["music_head_blend"] = 1.0
 
+    print("\n[새 구조 — pipeline=direct, 분리 없이 세 판정]")
+    with tempfile.TemporaryDirectory() as tmp:
+        model_dir = Path(tmp)
+        saved_dir = m.MODEL_DIR
+        m.MODEL_DIR = model_dir
+        try:
+            m.CONFIG["pipeline"] = "direct"
+            check("헤드가 하나도 없으면 분리 경로로", m.load_multihead() is None)
+
+            # 세 헤드 중 둘만 둔다 — 섞이면 점수 해석이 불가능하므로 켜지면 안 된다
+            for name in ("head_file.npz", "head_voice.npz"):
+                np.savez(model_dir / name, w=np.zeros(4), b=np.array([0.0]))
+            check("일부만 있으면 켜지 않는다", m.load_multihead() is None)
+
+            np.savez(model_dir / "head_music.npz", w=np.zeros(4), b=np.array([2.0]))
+            heads = m.load_multihead()
+            check("셋 다 있으면 활성", heads is not None and len(heads) == 3,
+                  None if heads is None else len(heads))
+
+            m.CONFIG["pipeline"] = "separate"
+            check("pipeline=separate 면 안 켜진다", m.load_multihead() is None)
+            m.CONFIG["pipeline"] = "direct"
+
+            audio = np.full(64_000, 0.1, dtype=np.float32)
+            m.load_audio_16k = lambda p: audio
+            m.predict_presence = lambda panns, wav: (0.77, 0.33)
+            scorer = FakeScorer(0.8, 0.3, 0.6)
+            res = m.process_one_file(Path("x.wav"), None, scorer, None, None,
+                                     None, None, heads)
+
+            check("다섯 컬럼을 다 낸다", set(res) == set(m.PREDICTION_COLUMNS), sorted(res))
+            check("분리를 안 부른다 (스템 호출 없음)",
+                  scorer.calls == [None], str(scorer.calls))
+            check("DF-Arena 를 한 번만 부른다", len(scorer.calls) == 1, str(scorer.calls))
+            check("존재 확률은 PANNs 값 그대로",
+                  res["VOICE_PRESENT_PROB"] == 0.77 and res["MUSIC_PRESENT_PROB"] == 0.33)
+            check("w=0,b=0 헤드는 0.5", abs(res["FILE_FAKE_PROB"] - 0.5) < 1e-9,
+                  str(res["FILE_FAKE_PROB"]))
+            check("b=2 헤드는 sigmoid(2)",
+                  abs(res["MUSIC_FAKE_PROB"] - 1 / (1 + np.exp(-2.0))) < 1e-9,
+                  str(res["MUSIC_FAKE_PROB"]))
+            check("모든 값이 [0,1]",
+                  all(0.0 <= float(v) <= 1.0 for v in res.values()), str(res))
+
+            # 임베딩이 없으면(무음 등) 죽지 않고 중립으로 떨어져야 한다
+            class NoEmbedScorer(FakeScorer):
+                def score(self, audio, kind=None, want_embeddings=False):
+                    self.calls.append(kind)
+                    return (0.0, None) if want_embeddings else 0.0
+
+            res = m.process_one_file(Path("x.wav"), None, NoEmbedScorer(0.8, 0.3, 0.6),
+                                     None, None, None, None, heads)
+            check("임베딩이 없어도 안 죽는다",
+                  all(0.0 <= float(v) <= 1.0 for v in res.values()), str(res))
+
+            m.CONFIG["pipeline"] = "separate"
+            res = m.process_one_file(Path("x.wav"), None, FakeScorer(0.8, 0.3, 0.6),
+                                     None, None)
+            check("multihead=None 이면 기존 경로 그대로",
+                  abs(res["VOICE_FAKE_PROB"] - 0.8) < 1e-9, str(res["VOICE_FAKE_PROB"]))
+        finally:
+            m.MODEL_DIR = saved_dir
+            m.CONFIG["pipeline"] = "separate"
+            m.predict_presence = lambda panns, wav: (0.9, 0.9)
+
     print("\n[집계 first — DF-Arena 공식 경로]")
     check("첫 세그먼트만 쓴다",
           m.aggregate_segment_scores([0.2, 0.9, 0.5], "first") == 0.2)

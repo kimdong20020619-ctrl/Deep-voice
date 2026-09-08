@@ -234,7 +234,7 @@ def _segment_scores(script, scorer, audio, want_embeddings, capture=None):
     return scores, (embeddings if want_embeddings and len(embeddings) else None)
 
 
-def predict(script, cache, config, music_probe=None, file_probe=None):
+def predict(script, cache, config, music_probe=None, file_probe=None, multihead=None):
     """캐시 위에서 한 설정의 5개 예측값을 만든다. 실제 process_one_file 을 그대로 쓴다."""
     original_config = copy.deepcopy(script.CONFIG)
     original_load = script.load_audio_16k
@@ -254,7 +254,7 @@ def predict(script, cache, config, music_probe=None, file_probe=None):
 
             result = script.process_one_file(
                 Path(entry["ID"]), None, CachedScorer(script, entry), None, None,
-                music_probe, file_probe)
+                music_probe, file_probe, multihead)
             ids.append(entry["ID"])
             for name in script.PREDICTION_COLUMNS:
                 columns[name].append(float(result[name]))
@@ -281,11 +281,12 @@ def build_truth(label_rows, ids):
 
 
 def sweep(script, cache, label_rows, configs, music_probe=None, baseline_name=None,
-          file_probe=None):
+          file_probe=None, multihead=None):
     """설정 목록을 전부 평가하고 총점 내림차순으로 돌려준다."""
     results = []
     for name, config in configs:
-        ids, predictions = predict(script, cache, config, music_probe, file_probe)
+        ids, predictions = predict(script, cache, config, music_probe, file_probe,
+                                   multihead)
         truth = build_truth(label_rows, ids)
         result = evaluate(predictions, truth)
         result["name"] = name
