@@ -487,6 +487,73 @@ def test_music_probe(m):
               abs(res["MUSIC_FAKE_PROB"] - 0.3) < 1e-9, str(res["MUSIC_FAKE_PROB"]))
         m.CONFIG["music_head_blend"] = 1.0
 
+    print("\n[FILE 프로브 — 실효 가중치 0.45]")
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "file_head.npz"
+        np.savez(path, w=np.zeros(4), b=np.array([0.0]))   # 항상 0.5 를 내는 프로브
+        file_probe = m.LinearProbe(path)
+
+        m.CONFIG["file_head"] = "direct"
+        m.CONFIG["demucs_gating"] = True
+        audio = np.full(64_000, 0.1, dtype=np.float32)
+        m.load_audio_16k = lambda p: audio
+        m.separate_voice_and_music = lambda wav, model, device: (audio, audio)
+
+        # 혼합 파일 — 분리가 일어나고 원본을 따로 채점한다
+        m.predict_presence = lambda panns, wav: (0.9, 0.9)
+        scorer = FakeScorer(0.8, 0.3, 0.6)
+        m.CONFIG["file_probe_blend"] = 1.0
+        res = m.process_one_file(Path("x.wav"), None, scorer, None, None, None, file_probe)
+        check("blend=1.0 -> FILE 이 프로브 값", abs(res["FILE_FAKE_PROB"] - 0.5) < 1e-9,
+              str(res["FILE_FAKE_PROB"]))
+
+        scorer = FakeScorer(0.8, 0.3, 0.6)
+        m.CONFIG["file_probe_blend"] = 0.5
+        res = m.process_one_file(Path("x.wav"), None, scorer, None, None, None, file_probe)
+        check("blend=0.5 -> 프로브와 direct 평균",
+              abs(res["FILE_FAKE_PROB"] - 0.5 * (0.5 + 0.6)) < 1e-9,
+              str(res["FILE_FAKE_PROB"]))
+        m.CONFIG["file_probe_blend"] = 1.0
+
+        scorer = FakeScorer(0.8, 0.3, 0.6)
+        res = m.process_one_file(Path("x.wav"), None, scorer, None, None, None, None)
+        check("프로브 None -> 기존 direct 유지",
+              abs(res["FILE_FAKE_PROB"] - 0.6) < 1e-9, str(res["FILE_FAKE_PROB"]))
+
+        # 게이팅으로 분리를 건너뛴 파일 — 원본이 곧 음악 스템이다.
+        # 여기서 DF-Arena 를 한 번 더 부르면 추론 시간이 늘어난다. 임베딩을 재사용해야 한다.
+        m.predict_presence = lambda panns, wav: (0.01, 0.9)
+        scorer = FakeScorer(0.8, 0.3, 0.6)
+        res = m.process_one_file(Path("x.wav"), None, scorer, None, None, None, file_probe)
+        check("게이팅 시 원본 재채점 없음 (임베딩 재사용)",
+              None not in scorer.calls, str(scorer.calls))
+        check("게이팅 시에도 프로브가 적용된다",
+              abs(res["FILE_FAKE_PROB"] - 0.5) < 1e-9, str(res["FILE_FAKE_PROB"]))
+
+        # 음악 프로브가 켜져 있어도 direct 는 **프로브 이전 원점수**를 써야 한다.
+        # 프로브가 섞인 값을 재사용하면 direct 의 의미가 조용히 바뀐다.
+        music_path = Path(tmp) / "music_head.npz"
+        np.savez(music_path, w=np.zeros(4), b=np.array([0.0]))
+        music_probe = m.LinearProbe(music_path)
+        scorer = FakeScorer(0.8, 0.3, 0.6)
+        res = m.process_one_file(Path("x.wav"), None, scorer, None, None, music_probe, None)
+        check("음악 프로브가 direct 를 오염시키지 않는다",
+              abs(res["FILE_FAKE_PROB"] - 0.3) < 1e-9, str(res["FILE_FAKE_PROB"]))
+        check("그때 MUSIC 은 프로브 값", abs(res["MUSIC_FAKE_PROB"] - 0.5) < 1e-9,
+              str(res["MUSIC_FAKE_PROB"]))
+
+        # 로더 — 파일이 없거나 fusion 이면 조용히 비활성
+        m.CONFIG["file_probe"] = "probe"
+        m.CONFIG["file_head"] = "fusion"
+        check("file_head=fusion 이면 FILE 프로브를 안 켠다", m.load_file_probe() is None)
+        m.CONFIG["file_head"] = "direct"
+        check("npz 가 없으면 조용히 비활성", m.load_file_probe() is None)
+        m.CONFIG["file_probe"] = "none"
+        check("file_probe=none 이면 비활성", m.load_file_probe() is None)
+
+    # 게이팅 상태를 되돌린다. 안 그러면 다음 섹션이 음악 단독 파일을 보게 된다.
+    m.predict_presence = lambda panns, wav: (0.9, 0.9)
+
     print("\n[진단 모드 — Music EER 단독 측정]")
     m.CONFIG["file_head"] = "direct"
     m.CONFIG["music_head"] = "constant"

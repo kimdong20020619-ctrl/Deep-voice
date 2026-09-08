@@ -151,7 +151,7 @@ def _segment_scores(script, scorer, audio, want_embeddings):
     return scores, (embeddings if want_embeddings and len(embeddings) else None)
 
 
-def predict(script, cache, config, music_probe=None):
+def predict(script, cache, config, music_probe=None, file_probe=None):
     """캐시 위에서 한 설정의 5개 예측값을 만든다. 실제 process_one_file 을 그대로 쓴다."""
     original_config = copy.deepcopy(script.CONFIG)
     original_load = script.load_audio_16k
@@ -170,7 +170,8 @@ def predict(script, cache, config, music_probe=None):
                 lambda _a, _m, _d: (_marker(MARK_VOICE), _marker(MARK_MUSIC)))
 
             result = script.process_one_file(
-                Path(entry["ID"]), None, CachedScorer(script, entry), None, None, music_probe)
+                Path(entry["ID"]), None, CachedScorer(script, entry), None, None,
+                music_probe, file_probe)
             ids.append(entry["ID"])
             for name in script.PREDICTION_COLUMNS:
                 columns[name].append(float(result[name]))
@@ -196,11 +197,12 @@ def build_truth(label_rows, ids):
     return {name: np.asarray(values) for name, values in truth.items()}
 
 
-def sweep(script, cache, label_rows, configs, music_probe=None, baseline_name=None):
+def sweep(script, cache, label_rows, configs, music_probe=None, baseline_name=None,
+          file_probe=None):
     """설정 목록을 전부 평가하고 총점 내림차순으로 돌려준다."""
     results = []
     for name, config in configs:
-        ids, predictions = predict(script, cache, config, music_probe)
+        ids, predictions = predict(script, cache, config, music_probe, file_probe)
         truth = build_truth(label_rows, ids)
         result = evaluate(predictions, truth)
         result["name"] = name
@@ -274,6 +276,41 @@ def default_grid():
         ("gate:v0.40", {"gate_voice": 0.40}),
     ]
     return grid
+
+
+def probe_grid():
+    """프로브를 학습한 뒤 쓰는 스윕. default_grid 와 이어붙여 쓴다.
+
+    **file_head 재평가가 핵심이다.** 제출 #2 에서 direct 가 fusion 을 이긴 것은
+    "음악 가지가 쓰레기일 때"의 결론이었다. 음악 프로브가 서면 융합이 다시 이길 수 있고,
+    그러면 MUSIC(0.27) 뿐 아니라 FILE(0.45)까지 회수된다. 그게 프로브를 다는 이유다.
+
+    호출 쪽에서 sweep(..., music_probe=..., file_probe=...) 로 프로브를 넘겨야
+    이 설정들이 실제로 동작한다. 프로브가 None 이면 전부 기준선과 같은 값이 나온다.
+    """
+    return [
+        # 음악 프로브 단독 — MUSIC 0.27
+        ("probe:music", {"music_head": "probe", "music_head_blend": 1.0}),
+        ("probe:music blend0.7", {"music_head": "probe", "music_head_blend": 0.7}),
+        ("probe:music blend0.5", {"music_head": "probe", "music_head_blend": 0.5}),
+        # 음악이 살아난 뒤의 file_head 재평가 — 여기가 본 게임이다
+        ("probe:music+fusion",
+         {"music_head": "probe", "file_head": "fusion", "fusion_mode": "baseline"}),
+        ("probe:music+gated_max",
+         {"music_head": "probe", "file_head": "fusion", "fusion_mode": "gated_max"}),
+        ("probe:music+direct_max", {"music_head": "probe", "file_head": "direct_max"}),
+        ("probe:music+direct_mean", {"music_head": "probe", "file_head": "direct_mean"}),
+        # FILE 프로브 — 0.45 를 직접 겨냥한다. 과적합 위험이 가장 크다
+        ("probe:file", {"file_probe": "probe", "file_head": "direct"}),
+        ("probe:file blend0.5", {"file_probe": "probe", "file_head": "direct",
+                                 "file_probe_blend": 0.5}),
+        ("probe:file+direct_max", {"file_probe": "probe", "file_head": "direct_max"}),
+        # 둘 다
+        ("probe:both", {"music_head": "probe", "file_probe": "probe",
+                        "file_head": "direct"}),
+        ("probe:both+direct_max", {"music_head": "probe", "file_probe": "probe",
+                                   "file_head": "direct_max"}),
+    ]
 
 
 def cross_grid(best_config, extra):

@@ -325,9 +325,10 @@ with open("/kaggle/working/valset/labels.csv", encoding="utf-8") as f:
     labels = list(csv.DictReader(f))
 print(f"검증셋 {len(labels)}개")
 
-# want_embeddings=True 로 두면 음악 프로브 학습용 임베딩까지 같이 모은다 (메모리 증가)
+# 임베딩을 같이 모은다. 프로브 학습에 필요한데, 나중에 켜면 이 50분을 다시 태워야 한다.
+# 비용은 메모리뿐이다 — 400파일 기준 100MB 안쪽.
 cache = sweep_mod.precompute(script, labels, "/kaggle/working/valset/test",
-                             panns, scorer, htdemucs, device, want_embeddings=False)
+                             panns, scorer, htdemucs, device, want_embeddings=True)
 
 # ---------- A8 ----------
 # 캐시를 저장해두면 이후 스윕은 GPU 없이도 돌릴 수 있다

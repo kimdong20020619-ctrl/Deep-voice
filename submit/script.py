@@ -116,6 +116,20 @@ CONFIG = {
     # (FILE 이 음악 점수에 의존하지 않아야 한다).
     "music_head": "none",
     "music_constant": 0.5,
+
+    # FILE 프로브 (실효 가중치 0.45 — 단일 최대 항목). "none" | "probe"
+    #
+    # file_head=direct 가 쓰는 **원본 오디오 임베딩**에 선형 프로브를 얹는다.
+    # DF-Arena 는 ASVspoof(깨끗한 스튜디오 음성)로 학습됐는데 평가셋은 MP3·전화채널·
+    # 음악 혼합이다. 1B 를 파인튜닝하는 대신 마지막 층 위에서 도메인을 보정한다.
+    #
+    # 비용 0 — 원본 점수는 direct 를 위해 어차피 계산하고, 임베딩은 그때 같이 나온다.
+    # 게이팅으로 분리를 건너뛴 파일은 원본이 곧 그 성분이라 임베딩까지 재사용한다.
+    #
+    # ⚠️ 합성 검증셋에 과적합할 위험이 가장 큰 항목이다. 학습에 쓰지 않은
+    # 생성기로 만든 홀드아웃에서 이득이 유지될 때만 채택한다.
+    "file_probe": "none",
+    "file_probe_blend": 1.0,
     # 프로브와 DF-Arena 원래 점수를 섞는 비율. 1.0 이면 프로브만, 0.5 면 평균.
     "music_head_blend": 1.0,
 
@@ -503,10 +517,10 @@ def install_batch_patch():
     DF_Arena_1B._batch_patched = True
 
 
-class MusicProbe:
-    """DF-Arena 임베딩 위에 얹는 선형 프로브 (생성 음악 탐지).
+class LinearProbe:
+    """DF-Arena 임베딩 위에 얹는 선형 프로브.
 
-    model/music_head.npz 형식:
+    model/<이름>.npz 형식:
         w     (1280,)  가중치
         b     scalar   절편
         mean  (1280,)  표준화 평균  (선택)
@@ -532,21 +546,40 @@ class MusicProbe:
         return 1.0 / (1.0 + np.exp(-np.clip(logit, -60.0, 60.0)))
 
 
-def load_music_probe():
-    """설정이 켜져 있고 가중치 파일이 있을 때만 프로브를 만든다."""
-    if CONFIG.get("music_head") != "probe":
-        return None
-    path = MODEL_DIR / "music_head.npz"
+# 예전 이름. 셀프테스트와 문서가 이 이름을 쓴다.
+MusicProbe = LinearProbe
+
+
+def load_probe(filename, label, blend_key):
+    """가중치 파일이 있을 때만 프로브를 만든다. 없으면 조용히 비활성이다.
+
+    프로브는 선택 기능이다. npz 를 빼먹었다고 추론 전체가 죽으면
+    제출 3회 중 1회를 태운다 — 없으면 없는 대로 베이스라인으로 돈다.
+    """
+    path = MODEL_DIR / filename
     if not path.is_file():
-        log("[info] music_head=probe 이지만 model/music_head.npz 가 없다. 비활성화한다.")
+        log(f"[info] {label} 프로브가 켜져 있지만 model/{filename} 이 없다. 비활성화한다.")
         return None
     try:
-        probe = MusicProbe(path)
-        log(f"[info] 음악 프로브 로드: dim={probe.w.size}, blend={CONFIG['music_head_blend']}")
+        probe = LinearProbe(path)
+        log(f"[info] {label} 프로브 로드: dim={probe.w.size}, blend={CONFIG[blend_key]}")
         return probe
     except Exception as error:
-        log(f"[warn] 음악 프로브 로드 실패, 비활성화한다: {type(error).__name__}: {error}")
+        log(f"[warn] {label} 프로브 로드 실패, 비활성화한다: {type(error).__name__}: {error}")
         return None
+
+
+def load_music_probe():
+    if CONFIG.get("music_head") != "probe":
+        return None
+    return load_probe("music_head.npz", "음악", "music_head_blend")
+
+
+def load_file_probe():
+    # file_head=fusion 이면 FILE 이 원본 점수를 안 쓴다. 프로브를 얹을 자리가 없다.
+    if CONFIG.get("file_probe") != "probe" or CONFIG.get("file_head") == "fusion":
+        return None
+    return load_probe("file_head.npz", "파일", "file_probe_blend")
 
 
 class DFArenaScorer:
@@ -747,7 +780,8 @@ def combine_file_fake_score(voice_fake, music_fake, voice_present, music_present
 # 7. 메인
 # =============================================================================
 
-def process_one_file(audio_path, panns, scorer, htdemucs, device, music_probe=None):
+def process_one_file(audio_path, panns, scorer, htdemucs, device,
+                     music_probe=None, file_probe=None):
     audio = load_audio_16k(audio_path)
     voice_present, music_present = predict_presence(panns, audio)
 
@@ -770,18 +804,38 @@ def process_one_file(audio_path, panns, scorer, htdemucs, device, music_probe=No
         else:
             voice_audio, music_audio = empty, audio
 
-    voice_fake = scorer.score(voice_audio, kind="voice")
+    # 게이팅으로 분리를 건너뛰면 원본이 곧 그 성분이다. 그 스템의 임베딩을 그대로
+    # FILE 프로브에 물려주면 DF-Arena 를 한 번 더 부르지 않아도 된다.
+    reuse_kind = None
+    if not need_separation:
+        reuse_kind = "voice" if skip_reason == "voice_only" else "music"
 
-    if music_probe is None:
-        music_fake = scorer.score(music_audio, kind="music")
+    want_voice_embeddings = file_probe is not None and reuse_kind == "voice"
+    want_music_embeddings = (music_probe is not None
+                             or (file_probe is not None and reuse_kind == "music"))
+
+    if want_voice_embeddings:
+        voice_fake, voice_embeddings = scorer.score(voice_audio, kind="voice",
+                                                    want_embeddings=True)
     else:
+        voice_fake, voice_embeddings = scorer.score(voice_audio, kind="voice"), None
+
+    if want_music_embeddings:
         # 임베딩은 추론 중 어차피 만들어지므로 프로브 적용에 추가 연산이 없다.
-        music_fake, embeddings = scorer.score(music_audio, kind="music", want_embeddings=True)
-        if embeddings is not None and embeddings.shape[0] > 0:
-            probe_scores = music_probe.predict(embeddings).tolist()
-            probe_agg = aggregate_segment_scores(probe_scores, resolve_agg("music"))
-            blend = float(CONFIG["music_head_blend"])
-            music_fake = blend * probe_agg + (1.0 - blend) * music_fake
+        music_fake, music_embeddings = scorer.score(music_audio, kind="music",
+                                                    want_embeddings=True)
+    else:
+        music_fake, music_embeddings = scorer.score(music_audio, kind="music"), None
+
+    # direct 재사용은 **프로브를 거치기 전 원점수**여야 한다. 프로브가 섞인 값을
+    # 재사용하면 direct 의 의미(원본을 DF-Arena 로 채점한 값)가 조용히 바뀐다.
+    music_fake_raw = music_fake
+
+    if music_probe is not None and music_embeddings is not None and music_embeddings.shape[0] > 0:
+        probe_scores = music_probe.predict(music_embeddings).tolist()
+        probe_agg = aggregate_segment_scores(probe_scores, resolve_agg("music"))
+        blend = float(CONFIG["music_head_blend"])
+        music_fake = blend * probe_agg + (1.0 - blend) * music_fake
 
     fused = combine_file_fake_score(voice_fake, music_fake, voice_present, music_present)
     file_head = CONFIG["file_head"]
@@ -793,12 +847,23 @@ def process_one_file(audio_path, panns, scorer, htdemucs, device, music_probe=No
         # 게이팅으로 분리를 건너뛴 파일은 원본이 곧 그 성분이라 이미 계산돼 있다.
         # 단, 해당 헤드에 집계 덮어쓰기가 걸려 있으면 값이 달라지므로 재사용하지 않는다.
         direct = None
-        if not need_separation:
-            reused_kind = "voice" if skip_reason == "voice_only" else "music"
-            if resolve_agg(reused_kind) == CONFIG["segment_agg"]:
-                direct = voice_fake if reused_kind == "voice" else music_fake
+        direct_embeddings = None
+        if reuse_kind is not None and resolve_agg(reuse_kind) == CONFIG["segment_agg"]:
+            direct = voice_fake if reuse_kind == "voice" else music_fake_raw
+            direct_embeddings = (voice_embeddings if reuse_kind == "voice"
+                                 else music_embeddings)
         if direct is None:
-            direct = scorer.score(audio)
+            if file_probe is not None:
+                direct, direct_embeddings = scorer.score(audio, want_embeddings=True)
+            else:
+                direct = scorer.score(audio)
+
+        if (file_probe is not None and direct_embeddings is not None
+                and direct_embeddings.shape[0] > 0):
+            probe_scores = file_probe.predict(direct_embeddings).tolist()
+            probe_agg = aggregate_segment_scores(probe_scores, resolve_agg())
+            blend = float(CONFIG["file_probe_blend"])
+            direct = blend * probe_agg + (1.0 - blend) * direct
 
         if file_head == "direct":
             file_fake = direct
@@ -840,6 +905,7 @@ def main():
     scorer = DFArenaScorer(device)
     htdemucs = load_htdemucs_model(device)
     music_probe = load_music_probe()
+    file_probe = load_file_probe()
     log(f"[info] 모델 로드 {time.perf_counter() - load_started:.1f}s")
 
     failures = []
@@ -852,7 +918,7 @@ def main():
             if audio_path is None:
                 raise FileNotFoundError(f"no file for ID {audio_id}")
             result = process_one_file(audio_path, panns, scorer, htdemucs, device,
-                                      music_probe)
+                                      music_probe, file_probe)
         except Exception:
             # 한 파일의 실패가 1,200개 전체를 0점으로 만들지 않게 한다.
             failures.append(audio_id)
