@@ -487,6 +487,19 @@ def test_music_probe(m):
               abs(res["MUSIC_FAKE_PROB"] - 0.3) < 1e-9, str(res["MUSIC_FAKE_PROB"]))
         m.CONFIG["music_head_blend"] = 1.0
 
+    print("\n[집계 first — DF-Arena 공식 경로]")
+    check("첫 세그먼트만 쓴다",
+          m.aggregate_segment_scores([0.2, 0.9, 0.5], "first") == 0.2)
+    check("max 와 다르다 (첫 값이 최대가 아닐 때)",
+          m.aggregate_segment_scores([0.2, 0.9, 0.5], "first")
+          != m.aggregate_segment_scores([0.2, 0.9, 0.5], "max"))
+    check("세그먼트 1개면 max 와 같다",
+          m.aggregate_segment_scores([0.7], "first")
+          == m.aggregate_segment_scores([0.7], "max"))
+    check("빈 입력에서 안 죽는다", m.aggregate_segment_scores([], "first") == 0.0)
+    check("길이 편향이 없다 — 세그먼트를 늘려도 값이 그대로",
+          m.aggregate_segment_scores([0.3] + [0.95] * 14, "first") == 0.3)
+
     print("\n[FILE 프로브 — 실효 가중치 0.45]")
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "file_head.npz"

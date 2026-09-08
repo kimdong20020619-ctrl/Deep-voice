@@ -335,6 +335,11 @@ def default_grid():
         ("fuse:gamma0.5", {"file_head": "fusion", "fusion_mode": "gamma", "fusion_gamma": 0.5}),
         ("fuse:gamma0.25", {"file_head": "fusion", "fusion_mode": "gamma", "fusion_gamma": 0.25}),
         ("fuse:gated_max", {"file_head": "fusion", "fusion_mode": "gated_max"}),
+        # 공식 경로 — DF-Arena 특징추출기는 앞 64,600 샘플만 본다.
+        # 우리의 전 구간 분할+max 가 그보다 나은지 한 번도 측정된 적이 없다.
+        # 이게 0-C 하네스 시험의 GPU 가 필요 없는 절반이다.
+        ("agg:first(공식경로)", {"segment_agg": "first"}),
+        ("agg:first+direct_max", {"segment_agg": "first", "file_head": "direct_max"}),
         # 세그먼트 집계 — 전 항목에 영향
         # max 는 길이 편향이 있다. 4~60초가 섞인 평가셋에서 표본 수가 1~15개로 달라진다.
         # 비율 지정 top-k 는 길이에 따라 k 가 함께 늘어 그 편향을 상쇄한다.

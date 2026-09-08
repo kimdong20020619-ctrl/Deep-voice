@@ -358,6 +358,12 @@ def aggregate_segment_scores(scores, mode=None):
     if values.size == 0:
         return 0.0
     mode = mode or CONFIG["segment_agg"]
+    if mode == "first":
+        # DF-Arena 공식 특징추출기(feature_extraction_antispoofing.py)는
+        # 앞 64,600 샘플만 보고 나머지를 버린다. 모델이 학습·평가된 방식이 이것이다.
+        # 우리의 전 구간 분할+max 는 개선 시도지만 한 번도 실측된 적이 없다.
+        # 이 모드가 그 기준선이다 — 우리 확장이 이득인지 손해인지 여기서 갈린다.
+        return float(values[0])
     if mode == "mean":
         return float(values.mean())
     if mode == "topk_mean":
