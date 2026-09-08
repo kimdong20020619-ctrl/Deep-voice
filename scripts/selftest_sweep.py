@@ -153,6 +153,102 @@ def test_valset_signal_functions():
         check(f"라벨 정합성 {name}", ok)
 
 
+def test_conformer_capture():
+    """Conformer 입력 캡처의 배선을 GPU·torch 없이 검증한다.
+
+    이 캐시가 틀리면 그 위에 올린 학습 전체가 무의미해진다. 로컬에 torch 가 없으므로
+    훅 계약(register_forward_pre_hook -> fn(module, args), handle.remove())만
+    같은 모양의 가짜로 흉내 내 **버퍼·플래그·dtype·모양** 을 확인한다.
+
+    ⚠️ 실제 torch 훅이 이 지점에서 정말 잡히는지, 재생값이 원래 추론과 일치하는지는
+    여기서 검증되지 않는다. 그건 Kaggle 노트북의 `replay_conformer` 대조로 확인한다.
+    """
+    print("\n[Conformer 입력 캡처 — 배선 (torch 계층은 Kaggle 에서 확인)]")
+
+    class FakeTensor:
+        """torch 텐서 중 캡처가 실제로 쓰는 메서드만 갖춘 것."""
+
+        def __init__(self, array):
+            self.array = array
+
+        def detach(self):
+            return self
+
+        def float(self):
+            return self
+
+        def cpu(self):
+            return self
+
+        def numpy(self):
+            return self.array
+
+    class FakeHandle:
+        def __init__(self, module):
+            self.module = module
+
+        def remove(self):
+            self.module.hooks.clear()
+
+    class FakeModule:
+        def __init__(self):
+            self.hooks = []
+
+        def register_forward_pre_hook(self, fn):
+            self.hooks.append(fn)
+            return FakeHandle(self)
+
+        def __call__(self, x):
+            for fn in self.hooks:
+                fn(self, (x,))
+            return x
+
+    class FakeScorer:
+        def __init__(self):
+            self.model = type("M", (), {})()
+            self.model.backbone = type("B", (), {})()
+            self.model.backbone.conformer = FakeModule()
+
+    scorer = FakeScorer()
+    conformer = scorer.model.backbone.conformer
+    capture = sweep_mod.ConformerInputCapture(scorer)
+    rng = np.random.default_rng(0)
+
+    def forward(n_seg, frames=7, dim=16):
+        return conformer(FakeTensor(rng.normal(size=(n_seg, frames, dim)).astype(np.float32)))
+
+    check("훅이 걸렸다", len(conformer.hooks) == 1)
+
+    capture.enabled = False
+    forward(2)
+    check("enabled=False 면 안 잡는다", capture.take() is None)
+
+    capture.enabled = True
+    forward(3)
+    captured = capture.take()
+    check("모양이 (n_seg, T, D)", captured is not None and captured.shape == (3, 7, 16),
+          None if captured is None else captured.shape)
+    check("fp16 으로 저장한다", captured is not None and captured.dtype == np.float16,
+          None if captured is None else captured.dtype)
+    check("take() 가 버퍼를 비운다", capture.take() is None)
+
+    forward(2)
+    forward(5)
+    stacked = capture.take()
+    check("여러 배치를 세그먼트 축으로 이어붙인다",
+          stacked is not None and stacked.shape[0] == 7,
+          None if stacked is None else stacked.shape)
+
+    capture.close()
+    forward(2)
+    check("close() 후 훅이 떨어진다", capture.take() is None and not conformer.hooks)
+
+    per_segment = 201 * 1280 * 2 / 1024 ** 2
+    check("세그먼트당 0.5MB 안쪽 (fp16)", per_segment < 0.55, f"{per_segment:.2f} MB")
+    print(f"         실제 규모 환산 {per_segment:.2f} MB/세그먼트 · "
+          f"12,000세그먼트 = {per_segment * 12000 / 1024:.1f} GB")
+
+
 def main():
     install_stubs()
     script = sweep_mod.load_script(REPO / "submit" / "script.py")
@@ -223,6 +319,7 @@ def main():
     check(f"기본 그리드 {len(grid)}개 전부 실행", ok)
 
     test_valset_signal_functions()
+    test_conformer_capture()
 
     print("\n" + "=" * 60)
     if FAILURES:

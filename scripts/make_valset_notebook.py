@@ -555,6 +555,48 @@ print("\\n주의 — 이 검증셋으로 고른 프로브는 같은 생성기에
 print("      학습에 쓰지 않은 생성기로 만든 홀드아웃에서 이득이 유지되는지 반드시 확인한다.")
 """)
 
+md("""
+## 11. Conformer 캐시 정합성 — 학습 전 필수 관문
+
+새 구조는 **얼린 XLS-R-1B 뒤의 Conformer 입력을 캐시**해두고 그 위에서 백엔드를 학습한다.
+1B 순전파가 연산의 거의 전부이므로, 이 지점을 캐시하면 학습이 GPU 분 단위로 끝난다.
+
+**캐시가 잘못된 지점에서 잡히면 그 위에 올린 학습이 통째로 무의미해진다.**
+캐시한 입력을 원본 Conformer 에 도로 넣어 점수가 재현되는지 먼저 확인한다.
+로컬 셀프테스트는 배선(버퍼·dtype·모양)만 보고, torch 훅이 실제로 그 자리에서
+잡히는지는 여기서만 알 수 있다.
+""")
+code("""
+import numpy as np
+
+probe_rows = labels[:5]
+probe_cache = sweep_mod.precompute(
+    script, probe_rows, "/kaggle/working/valset/test",
+    panns, scorer, htdemucs, device,
+    want_conformer_input=True,
+    stems=("original",),          # 새 구조는 분리하지 않는다 -> Demucs 도 건너뛴다
+    progress_every=0,
+)
+
+worst = 0.0
+for entry in probe_cache:
+    captured = entry.get("conformer_input")
+    assert captured is not None, f"{entry['ID']}: Conformer 입력을 못 잡았다"
+    replayed = sweep_mod.replay_conformer(scorer, captured)
+    direct = np.asarray(entry["original_segments"], dtype=np.float64)
+    assert replayed.shape == direct.shape, f"세그먼트 수 불일치 {replayed.shape} vs {direct.shape}"
+    gap = float(np.abs(replayed - direct).max())
+    worst = max(worst, gap)
+    print(f"  {entry['ID']}  세그먼트 {len(direct):2d}  최대 편차 {gap:.2e}")
+
+print(f"\\n최대 편차 {worst:.2e}")
+assert worst < 5e-3, "캐시가 원래 추론을 재현하지 못한다 — 학습을 시작하면 안 된다"
+print("PASS  캐시한 Conformer 입력이 원래 추론을 재현한다. 학습으로 넘어가도 된다.")
+
+mb = probe_cache[0]["conformer_input"].nbytes / len(probe_cache[0]["original_segments"]) / 1024**2
+print(f"세그먼트당 {mb:.2f} MB (fp16) — 12,000 세그먼트면 {mb * 12000 / 1024:.1f} GB")
+""")
+
 notebook = {
     "cells": CELLS,
     "metadata": {

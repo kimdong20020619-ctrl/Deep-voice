@@ -77,3 +77,33 @@ results3 = sweep_mod.sweep(script, cache, labels, probe_configs,
 print("\n최고 설정:", results3[0]["name"], results3[0]["config"])
 print("\n주의 — 이 검증셋으로 고른 프로브는 같은 생성기에 과적합했을 수 있다.")
 print("      학습에 쓰지 않은 생성기로 만든 홀드아웃에서 이득이 유지되는지 반드시 확인한다.")
+
+# ---------- B6 ----------
+import numpy as np
+
+probe_rows = labels[:5]
+probe_cache = sweep_mod.precompute(
+    script, probe_rows, "/kaggle/working/valset/test",
+    panns, scorer, htdemucs, device,
+    want_conformer_input=True,
+    stems=("original",),          # 새 구조는 분리하지 않는다 -> Demucs 도 건너뛴다
+    progress_every=0,
+)
+
+worst = 0.0
+for entry in probe_cache:
+    captured = entry.get("conformer_input")
+    assert captured is not None, f"{entry['ID']}: Conformer 입력을 못 잡았다"
+    replayed = sweep_mod.replay_conformer(scorer, captured)
+    direct = np.asarray(entry["original_segments"], dtype=np.float64)
+    assert replayed.shape == direct.shape, f"세그먼트 수 불일치 {replayed.shape} vs {direct.shape}"
+    gap = float(np.abs(replayed - direct).max())
+    worst = max(worst, gap)
+    print(f"  {entry['ID']}  세그먼트 {len(direct):2d}  최대 편차 {gap:.2e}")
+
+print(f"\n최대 편차 {worst:.2e}")
+assert worst < 5e-3, "캐시가 원래 추론을 재현하지 못한다 — 학습을 시작하면 안 된다"
+print("PASS  캐시한 Conformer 입력이 원래 추론을 재현한다. 학습으로 넘어가도 된다.")
+
+mb = probe_cache[0]["conformer_input"].nbytes / len(probe_cache[0]["original_segments"]) / 1024**2
+print(f"세그먼트당 {mb:.2f} MB (fp16) — 12,000 세그먼트면 {mb * 12000 / 1024:.1f} GB")

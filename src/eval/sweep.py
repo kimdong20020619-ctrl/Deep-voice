@@ -73,17 +73,27 @@ class CachedScorer:
 
 
 def precompute(script, label_rows, test_dir, panns, scorer, htdemucs, device,
-               want_embeddings=False, progress_every=25):
+               want_embeddings=False, progress_every=25,
+               want_conformer_input=False, stems=("original", "voice", "music")):
     """파일마다 캐시 항목을 만든다. GPU 가 필요한 유일한 단계다.
 
     게이팅 임계값을 스윕하려면 모든 파일의 스템 점수가 필요하므로
-    여기서는 게이팅과 무관하게 **항상 분리**한다.
+    기본값은 게이팅과 무관하게 **항상 분리**한다.
+
+    stems 를 ("original",) 로 좁히면 분리를 건너뛴다. 새 구조(혼합 오디오에서 세 판정을
+    직접 내는 방식)의 학습 캐시를 만들 때는 스템이 필요 없고, 그러면 파일당 비용이
+    0.164 -> 0.059 s/오디오초로 떨어진다.
+
+    want_conformer_input 은 **원본 스템에만** 적용한다. 세 스템 전부 저장하면 용량이
+    3배가 되는데, 학습에 쓰는 건 원본이다.
     """
     import time
 
     test_dir = Path(test_dir)
     by_stem = {p.stem: p for p in test_dir.iterdir() if p.is_file()}
+    need_separation = bool(set(stems) & {"voice", "music"})
 
+    capture = ConformerInputCapture(scorer) if want_conformer_input else None
     cache = []
     started = time.perf_counter()
     for index, row in enumerate(label_rows):
@@ -95,15 +105,25 @@ def precompute(script, label_rows, test_dir, panns, scorer, htdemucs, device,
         try:
             audio = script.load_audio_16k(path)
             voice_present, music_present = script.predict_presence(panns, audio)
-            voice_audio, music_audio = script.separate_voice_and_music(audio, htdemucs, device)
+            if need_separation:
+                voice_audio, music_audio = script.separate_voice_and_music(
+                    audio, htdemucs, device)
+            else:
+                voice_audio = music_audio = None
 
             entry = {"ID": audio_id, "vp": voice_present, "mp": music_present}
-            for name, wav in (("original", audio), ("voice", voice_audio), ("music", music_audio)):
-                segments = _segment_scores(script, scorer, wav, want_embeddings)
+            waves = {"original": audio, "voice": voice_audio, "music": music_audio}
+            for name in stems:
+                wav = waves[name]
+                # 원본에만 Conformer 입력을 모은다 — 학습에 쓰는 건 원본이다.
+                stem_capture = capture if name == "original" else None
+                segments = _segment_scores(script, scorer, wav, want_embeddings, stem_capture)
                 entry[f"{name}_segments"] = segments[0]
                 entry[f"{name}_rms"] = script.calculate_rms(wav)   # silence_rms 스윕용
                 if want_embeddings:
                     entry[f"{name}_embeddings"] = segments[1]
+                if stem_capture is not None:
+                    entry["conformer_input"] = stem_capture.take()
             cache.append(entry)
         except Exception as error:
             print(f"[warn] {audio_id} 실패: {type(error).__name__}: {error}")
@@ -113,15 +133,73 @@ def precompute(script, label_rows, test_dir, panns, scorer, htdemucs, device,
             print(f"  {index + 1}/{len(label_rows)}  {elapsed:.0f}s "
                   f"({elapsed / (index + 1):.2f}s/파일)")
 
+    if capture is not None:
+        capture.close()
+        total = sum(e["conformer_input"].nbytes for e in cache
+                    if e.get("conformer_input") is not None)
+        print(f"Conformer 입력 캐시 {total / 1024**3:.2f} GB")
+
     print(f"캐시 {len(cache)}개 완성, {time.perf_counter() - started:.0f}s")
     return cache
 
 
-def _segment_scores(script, scorer, audio, want_embeddings):
+class ConformerInputCapture:
+    """DF-Arena Conformer 의 입력 (T, 1280) 을 가로채 모아둔다.
+
+    왜 여기에 있는가 — 이건 **학습 캐시를 만들기 위한 것**이지 추론에 필요한 게 아니다.
+    제출 zip 의 script.py 에 넣으면 평가 서버가 쓰지도 않을 코드를 들고 가고,
+    거기서 나는 오류는 제출 3회 중 1회를 태운다. 학습 쪽에만 둔다.
+
+    왜 Conformer 입력인가 — 그 앞의 XLS-R-1B(얼림)가 연산의 거의 전부다.
+    이 지점을 캐시하면 1B 순전파를 세그먼트당 한 번만 하고, 그 뒤 Conformer(~160M)를
+    몇십 에폭 학습해도 GPU 시간이 거의 들지 않는다.
+
+    fp16 으로 저장한다. (T=201, D=1280) 이 fp32 면 세그먼트당 1MB, fp16 이면 0.49MB 다.
+    """
+
+    def __init__(self, scorer, dtype="float16"):
+        self.buffer = []
+        self.enabled = False
+        self.dtype = dtype
+        self.handle = scorer.model.backbone.conformer.register_forward_pre_hook(self._hook)
+
+    def _hook(self, _module, args):
+        if self.enabled and args:
+            self.buffer.append(args[0].detach().float().cpu().numpy().astype(self.dtype))
+
+    def take(self):
+        """모아둔 것을 (n_seg, T, D) 로 돌려주고 비운다."""
+        if not self.buffer:
+            return None
+        stacked = np.concatenate(self.buffer, axis=0)
+        self.buffer = []
+        return stacked
+
+    def close(self):
+        self.handle.remove()
+
+
+def replay_conformer(scorer, conformer_input):
+    """캐시한 Conformer 입력을 원본 모델에 다시 넣어 fake 확률을 낸다.
+
+    캐시가 올바른 지점에서 잡혔는지 확인하는 용도다. 이 값이 원래 추론과 다르면
+    캐시가 잘못된 것이고 그 위에 올린 학습은 전부 무의미하다. **학습 전에 반드시 통과시킨다.**
+    """
+    import torch
+
+    tensor = torch.from_numpy(np.asarray(conformer_input)).float().to(scorer.device)
+    with torch.inference_mode():
+        logits, _ = scorer.model.backbone.conformer(tensor)
+    return torch.softmax(logits.float(), dim=-1)[:, scorer.fake_index].cpu().numpy()
+
+
+def _segment_scores(script, scorer, audio, want_embeddings, capture=None):
     """세그먼트별 원점수를 뽑는다. 집계와 무음 판정은 스윕 때 다시 하므로 여기서는 하지 않는다.
 
     무음 문턱을 스윕하려면 캐시에 점수가 있어야 하므로, 여기서는 **가장 낮은 문턱**
     (완전 무음만 제외)으로 뽑는다. 실제 문턱 적용은 CachedScorer 가 한다.
+
+    capture 를 주면 Conformer 입력도 함께 모은다 (학습 캐시용).
     """
     if script.calculate_rms(audio) < 1e-9:
         return [], None
@@ -133,6 +211,9 @@ def _segment_scores(script, scorer, audio, want_embeddings):
     embeddings = []
     scorer._capture = bool(want_embeddings) and getattr(scorer, "has_embeddings", False)
     scorer._embeddings = []
+    if capture is not None:
+        capture.buffer = []
+        capture.enabled = True
     try:
         if scorer.batched:
             tensor = torch.from_numpy(segments).to(scorer.device)
@@ -148,6 +229,8 @@ def _segment_scores(script, scorer, audio, want_embeddings):
             embeddings = np.concatenate(scorer._embeddings, axis=0)
         scorer._capture = False
         scorer._embeddings = []
+        if capture is not None:
+            capture.enabled = False
     return scores, (embeddings if want_embeddings and len(embeddings) else None)
 
 
