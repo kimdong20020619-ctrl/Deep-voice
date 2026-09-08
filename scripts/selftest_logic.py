@@ -565,6 +565,29 @@ def test_music_probe(m):
           abs(res["FILE_FAKE_PROB"] - 0.6) < 1e-9, str(res["FILE_FAKE_PROB"]))
     check("VOICE 는 그대로", abs(res["VOICE_FAKE_PROB"] - 0.8) < 1e-9)
     m.CONFIG["music_head"] = "none"
+
+    print("\n[진단 모드 — Voice EER 단독 측정]")
+    m.CONFIG["voice_head"] = "constant"
+    m.CONFIG["voice_constant"] = 0.5
+    scorer = FakeScorer(0.8, 0.3, 0.6)
+    res = m.process_one_file(Path("x.wav"), None, scorer, None, None)
+    check("VOICE 가 상수로 고정", res["VOICE_FAKE_PROB"] == 0.5, str(res["VOICE_FAKE_PROB"]))
+    check("FILE 은 direct 유지 (음성에 비의존)",
+          abs(res["FILE_FAKE_PROB"] - 0.6) < 1e-9, str(res["FILE_FAKE_PROB"]))
+    check("MUSIC 은 그대로", abs(res["MUSIC_FAKE_PROB"] - 0.3) < 1e-9,
+          str(res["MUSIC_FAKE_PROB"]))
+
+    # 게이팅으로 분리를 건너뛴 음성 단독 파일 — direct 가 voice_fake 를 재사용한다.
+    # 상수 덮어쓰기가 그보다 먼저 일어나면 FILE 까지 0.5 가 되어 역산이 무효가 된다.
+    m.predict_presence = lambda panns, wav: (0.9, 0.01)
+    scorer = FakeScorer(0.8, 0.3, 0.6)
+    res = m.process_one_file(Path("x.wav"), None, scorer, None, None)
+    check("음성 단독 게이팅에서도 FILE 이 원점수(0.8)",
+          abs(res["FILE_FAKE_PROB"] - 0.8) < 1e-9, str(res["FILE_FAKE_PROB"]))
+    check("그때 VOICE 는 상수", res["VOICE_FAKE_PROB"] == 0.5, str(res["VOICE_FAKE_PROB"]))
+    m.predict_presence = lambda panns, wav: (0.9, 0.9)
+
+    m.CONFIG["voice_head"] = "none"
     m.CONFIG["file_head"] = "fusion"
 
 

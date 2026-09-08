@@ -117,6 +117,15 @@ CONFIG = {
     "music_head": "none",
     "music_constant": 0.5,
 
+    # VOICE 진단 (실효 가중치 0.18). "none" | "constant"
+    #
+    # music_head="constant" 와 같은 방식으로 Voice EER 을 단독 역산한다.
+    #     ADS(상수) - ADS(모델) = 0.2 × (Voice EER - 0.5)
+    # 음악 진단과 합치면 File EER 이 뺄셈으로 확정된다 — 세 축이 전부 드러난다.
+    # file_head=direct 일 때만 유효하다 (FILE 이 음성 점수에 의존하지 않아야 한다).
+    "voice_head": "none",
+    "voice_constant": 0.5,
+
     # FILE 프로브 (실효 가중치 0.45 — 단일 최대 항목). "none" | "probe"
     #
     # file_head=direct 가 쓰는 **원본 오디오 임베딩**에 선형 프로브를 얹는다.
@@ -875,6 +884,8 @@ def process_one_file(audio_path, panns, scorer, htdemucs, device,
     # 진단 모드는 출력 직전에만 덮어쓴다. 위쪽 direct 재사용 로직을 건드리지 않기 위해서다.
     if CONFIG.get("music_head") == "constant":
         music_fake = float(CONFIG["music_constant"])
+    if CONFIG.get("voice_head") == "constant":
+        voice_fake = float(CONFIG["voice_constant"])
 
     return {
         "FILE_FAKE_PROB": file_fake,
