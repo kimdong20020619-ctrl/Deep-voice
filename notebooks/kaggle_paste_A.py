@@ -89,6 +89,22 @@ def collect(root, limit=MAX_PER_SOURCE):
 
 MUSIC_WORDS = ("music", "musan", "fma", "gtzan", "genre", "song", "instrument")
 
+# 생성 음악 데이터셋·생성기 이름. 이 목록에 걸리면 폴더 구조와 무관하게 music_fake 다.
+# FakeMusicCaps 는 fake/ 폴더가 없고 생성기 이름으로 나뉘어 있어서, real/fake 하위폴더
+# 규칙만으로는 한 개도 못 잡는다.
+MUSIC_FAKE_WORDS = ("fakemusiccaps", "musicgen", "musicldm", "audioldm",
+                    "stableaudio", "stable_audio", "mustango",
+                    "suno", "udio", "sonics", "ai-music", "ai_music")
+
+# 생성 음악 데이터셋 안에 들어 있는 진짜 음악 하위셋. FakeMusicCaps 는 MusicCaps 원본을
+# 같이 담고 있으므로 이걸 fake 로 넣으면 라벨이 통째로 뒤집힌다.
+MUSIC_REAL_INSIDE_FAKE = ("musiccaps", "real", "bonafide", "original")
+
+# 보컬이 섞여 나오는 상용 생성기. 대회 정의상 음악은 **보컬 없는 반주·악기음만**이므로
+# (docs/00_competition-spec.md:66) 노래가 든 클립을 music_fake 로 쓰면
+# VOICE_PRESENT 라벨이 틀어지고 Voice EER 까지 오염된다. Phase 2 에서 PANNs 로 거른다.
+VOCAL_RISK_WORDS = ("suno", "udio")
+
 
 def dataset_roots():
     # Kaggle 입력 경로가 두 가지다:
@@ -111,6 +127,9 @@ def dataset_roots():
 
 def autodetect():
     found = {"voice_real": [], "voice_fake": [], "music_real": [], "music_fake": []}
+    # 가짜 음악은 어느 데이터셋에서 왔는지 기억한다. 학습에 쓴 생성기로 검증하면
+    # 점수가 뻥튀기되므로 train/holdout 을 생성기 단위로 갈라야 한다.
+    fake_music_by_source = {}
     roots = dataset_roots()
 
     print("[붙어 있는 데이터셋]")
@@ -118,8 +137,41 @@ def autodetect():
         print("  ", r)
     print()
 
+    # ① 생성 음악 데이터셋 — 이름으로 판별한다. real/fake 하위폴더가 없는 게 보통이다.
     for base in roots:
         low = str(base).lower()
+        if not any(k in low for k in MUSIC_FAKE_WORDS):
+            continue
+        real_dirs, fake_dirs = [], []
+        for sub in sorted(base.iterdir()) if base.is_dir() else []:
+            if not sub.is_dir():
+                continue
+            (real_dirs if any(k in sub.name.lower() for k in MUSIC_REAL_INSIDE_FAKE)
+             else fake_dirs).append(sub)
+
+        picked = []
+        for d in (fake_dirs or [base]):
+            picked.extend(collect(d, MAX_PER_SOURCE // max(len(fake_dirs), 1)))
+        if picked:
+            fake_music_by_source[base.name] = picked
+            found["music_fake"].extend(picked)
+            print(f"  [info] 생성 음악: {base.name} -> {len(picked)}개"
+                  + (f" (생성기 {len(fake_dirs)}종)" if fake_dirs else ""))
+        if any(k in low for k in VOCAL_RISK_WORDS):
+            print(f"  [warn] {base.name} 은 보컬이 섞일 수 있다."
+                  " 대회 정의상 음악은 무보컬이므로 PANNs 로 걸러야 한다")
+
+        for d in real_dirs:
+            got = collect(d, MAX_PER_SOURCE - len(found["music_real"]))
+            found["music_real"].extend(got)
+            if got:
+                print(f"  [info] 생성셋 안의 진짜 음악: {d.name} -> {len(got)}개")
+
+    # ② 나머지 데이터셋 — real/fake 하위폴더 규칙
+    for base in roots:
+        low = str(base).lower()
+        if any(k in low for k in MUSIC_FAKE_WORDS):
+            continue                      # ① 에서 이미 처리했다
         is_music = any(k in low for k in MUSIC_WORDS)
         for sub in base.rglob("*"):
             if not sub.is_dir():
@@ -134,11 +186,17 @@ def autodetect():
             if len(found[key]) < MAX_PER_SOURCE:
                 found[key].extend(collect(sub, MAX_PER_SOURCE - len(found[key])))
 
-    # 음악 데이터셋에는 real/fake 폴더가 없는 게 보통이다.
-    if not found["music_real"]:
+    # ③ 진짜 음악 보강 — 음악 데이터셋에는 real/fake 폴더가 없는 게 보통이다.
+    # "비어 있을 때만" 찾으면 안 된다. FakeMusicCaps 안의 MusicCaps 가 먼저 채워버리면
+    # MUSAN 이 통째로 누락되고, 진짜 음악이 생성셋과 같은 출처 하나로 쏠린다.
+    # 출처가 한 곳이면 프로브가 "음악 종류"를 외워버릴 수 있다.
+    music_fake_roots = {name for name in fake_music_by_source}
+    if len(found["music_real"]) < MAX_PER_SOURCE:
         # 1순위 — music 이라는 하위 폴더. MUSAN 은 music/ noise/ speech/ 로 나뉘므로
         # 통째로 쓰면 사람 말소리가 음악으로 섞인다.
         for base in roots:
+            if base.name in music_fake_roots:
+                continue
             hits = [d for d in base.rglob("*") if d.is_dir() and d.name.lower() == "music"]
             if hits:
                 print("  [info] music 하위 폴더 사용:", hits[0])
@@ -152,7 +210,9 @@ def autodetect():
         if not found["music_real"]:
             for base in roots:
                 low = str(base).lower()
-                if any(k in low for k in MUSIC_WORDS) and "bundle" not in low:
+                if base.name in music_fake_roots or "bundle" in low:
+                    continue
+                if any(k in low for k in MUSIC_WORDS):
                     print("  [info] 이름으로 음악 데이터셋 판별:", base)
                     found["music_real"].extend(collect(base))
                     break
@@ -162,9 +222,12 @@ def autodetect():
         found[key] = [q for q in found[key]
                       if not any(k in str(q).lower()
                                  for k in ("/music/", "musan", "gtzan"))]
+    found["_fake_music_by_source"] = fake_music_by_source
     return found
 
 SOURCES = autodetect()
+# build_valset 은 4개 키만 안다. 출처 기록은 따로 뺀다.
+FAKE_MUSIC_BY_SOURCE = SOURCES.pop("_fake_music_by_source", {})
 for key, paths in MANUAL.items():
     SOURCES[key] = [p for root in paths for p in collect(root)]
 
@@ -177,6 +240,16 @@ missing = [k for k in ("voice_real", "voice_fake", "music_real") if not SOURCES.
 assert not missing, f"필수 소스가 비었다: {missing} — MANUAL 에 경로를 직접 적어라"
 if not SOURCES.get("music_fake"):
     print("\n[warn] 가짜 음악 소스가 없다 -> Music EER 은 nan 이 된다 (실효 가중치 0.27 미측정)")
+
+# 교차 생성기 분할 — 학습에 쓴 생성기로 검증하면 점수가 뻥튀기된다.
+print("\n[가짜 음악 출처별]")
+for name, paths in FAKE_MUSIC_BY_SOURCE.items():
+    print(f"  {name:36s} {len(paths):6d}개")
+if not FAKE_MUSIC_BY_SOURCE:
+    print("  (없음)")
+elif len(FAKE_MUSIC_BY_SOURCE) < 2:
+    print("  [warn] 생성기가 1종뿐이다. 교차 생성기 검증이 불가능하므로")
+    print("         홀드아웃 결과를 일반화 근거로 쓸 수 없다")
 
 # ---------- A5 ----------
 import importlib, sys
