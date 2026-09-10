@@ -117,6 +117,23 @@ CONFIG = {
     "music_head": "none",
     "music_constant": 0.5,
 
+    # MUSIC_FAKE 를 무엇에서 뽑을 것인가. "stem" | "original"
+    #
+    # 진단 제출로 확정된 값 (2026-09-10):
+    #   Voice EER 22.34%  ← Demucs 음성 스템
+    #   File  EER 32.91%  ← 원본 (direct)
+    #   Music EER 42.57%  ← Demucs 음악 스템   ← 가장 나쁘다
+    #
+    # 가설: 생성 음악의 단서는 보코더가 남긴 스펙트럼 아티팩트인데,
+    # HTDemucs 의 16k -> 44.1k -> 마스킹 -> 16k 왕복이 바로 그것을 지운다.
+    # 음성 단서는 조음·운율에 있어 분리에 덜 취약하고, 분리가 음악을 걷어내
+    # 오히려 도움이 된다 — Voice 22.3% 가 그 증거다.
+    #
+    # "original" 은 원본 점수를 MUSIC_FAKE 로 쓴다. file_head=direct 면
+    # 원본은 이미 채점하므로 **추가 연산이 0** 이다.
+    # 대회 규칙 4) 는 한 파일 안의 재사용을 제한하지 않는다 (다른 파일 정보만 금지).
+    "music_source": "stem",
+
     # 파이프라인 구조. "separate" | "direct"
     #
     #   separate : PANNs -> HTDemucs 분리 -> 스템마다 DF-Arena -> 규칙 융합  (베이스라인)
@@ -932,7 +949,14 @@ def process_one_file(audio_path, panns, scorer, htdemucs, device,
     else:
         voice_fake, voice_embeddings = scorer.score(voice_audio, kind="voice"), None
 
-    if want_music_embeddings:
+    # music_source="original" 이면 음악 스템 점수를 버리게 된다. 분리를 한 파일에서는
+    # 아예 채점하지 않는다 — DF-Arena 호출이 하나 줄어 오히려 빨라진다.
+    # (게이팅으로 분리를 건너뛴 파일은 music_audio 가 곧 원본이라 그대로 쓴다.)
+    skip_music_stem = CONFIG.get("music_source") == "original" and reuse_kind is None
+
+    if skip_music_stem:
+        music_fake, music_embeddings = 0.0, None
+    elif want_music_embeddings:
         # 임베딩은 추론 중 어차피 만들어지므로 프로브 적용에 추가 연산이 없다.
         music_fake, music_embeddings = scorer.score(music_audio, kind="music",
                                                     want_embeddings=True)
@@ -942,6 +966,24 @@ def process_one_file(audio_path, panns, scorer, htdemucs, device,
     # direct 재사용은 **프로브를 거치기 전 원점수**여야 한다. 프로브가 섞인 값을
     # 재사용하면 direct 의 의미(원본을 DF-Arena 로 채점한 값)가 조용히 바뀐다.
     music_fake_raw = music_fake
+
+    # 원본 점수는 music_source="original" 과 file_head!="fusion" 이 둘 다 쓴다.
+    # 집계 모드가 같을 때만 공유해야 값이 어긋나지 않는다. 한 번만 계산한다.
+    original_cache = {}
+
+    def original_score(kind):
+        mode = resolve_agg(kind)
+        if mode not in original_cache:
+            # 게이팅으로 분리를 건너뛴 파일은 원본이 곧 그 성분이라 이미 채점돼 있다.
+            reused = None
+            if reuse_kind is not None and resolve_agg(reuse_kind) == mode:
+                reused = voice_fake if reuse_kind == "voice" else music_fake_raw
+            original_cache[mode] = (reused if reused is not None
+                                    else scorer.score(audio, kind=kind))
+        return original_cache[mode]
+
+    if CONFIG.get("music_source") == "original":
+        music_fake = music_fake_raw = original_score("music")
 
     if music_probe is not None and music_embeddings is not None and music_embeddings.shape[0] > 0:
         probe_scores = music_probe.predict(music_embeddings).tolist()
@@ -968,7 +1010,9 @@ def process_one_file(audio_path, panns, scorer, htdemucs, device,
             if file_probe is not None:
                 direct, direct_embeddings = scorer.score(audio, want_embeddings=True)
             else:
-                direct = scorer.score(audio)
+                # music_source="original" 이 같은 집계로 이미 채점했으면 그것을 쓴다.
+                # 안 그러면 같은 오디오를 두 번 채점해 추론 시간이 늘어난다.
+                direct = original_score(None)
 
         if (file_probe is not None and direct_embeddings is not None
                 and direct_embeddings.shape[0] > 0):

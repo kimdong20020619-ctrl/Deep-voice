@@ -487,6 +487,82 @@ def test_music_probe(m):
               abs(res["MUSIC_FAKE_PROB"] - 0.3) < 1e-9, str(res["MUSIC_FAKE_PROB"]))
         m.CONFIG["music_head_blend"] = 1.0
 
+    print("\n[music_source — 음악을 스템 대신 원본에서]")
+
+    class AudioKeyedScorer:
+        """오디오 **내용**으로 값을 정한다. kind 는 집계 모드만 고른다.
+
+        FakeScorer 는 kind 로만 값을 정해서 '원본을 music 집계로 채점' 과
+        '음악 스템 채점' 을 구분하지 못한다. 실제 DFArenaScorer 는 오디오를 보므로
+        이 구분이 되는 도구가 있어야 music_source 를 검증할 수 있다.
+        """
+
+        VALUES = {0.1: 0.6, 0.2: 0.8, 0.3: 0.3}     # 원본 / 음성스템 / 음악스템
+
+        def __init__(self):
+            self.calls = []
+
+        def score(self, audio, kind=None, want_embeddings=False):
+            if audio.size <= 1:
+                return (0.0, None) if want_embeddings else 0.0
+            value = self.VALUES[round(float(audio[0]), 1)]
+            self.calls.append((round(float(audio[0]), 1), kind))
+            return (value, None) if want_embeddings else value
+
+    original = np.full(64_000, 0.1, dtype=np.float32)
+    voice_stem = np.full(64_000, 0.2, dtype=np.float32)
+    music_stem = np.full(64_000, 0.3, dtype=np.float32)
+    m.load_audio_16k = lambda p: original
+    m.separate_voice_and_music = lambda wav, model, dev: (voice_stem, music_stem)
+    m.CONFIG["file_head"] = "direct"
+    m.predict_presence = lambda panns, wav: (0.9, 0.9)
+
+    scorer = AudioKeyedScorer()
+    res = m.process_one_file(Path("x.wav"), None, scorer, None, None)
+    check("stem 기본값: MUSIC 은 음악 스템(0.3)",
+          abs(res["MUSIC_FAKE_PROB"] - 0.3) < 1e-9, str(res["MUSIC_FAKE_PROB"]))
+    check("그때 FILE 은 원본(0.6)", abs(res["FILE_FAKE_PROB"] - 0.6) < 1e-9,
+          str(res["FILE_FAKE_PROB"]))
+
+    m.CONFIG["music_source"] = "original"
+    scorer = AudioKeyedScorer()
+    res = m.process_one_file(Path("x.wav"), None, scorer, None, None)
+    check("original: MUSIC 이 원본 점수(0.6)",
+          abs(res["MUSIC_FAKE_PROB"] - 0.6) < 1e-9, str(res["MUSIC_FAKE_PROB"]))
+    check("VOICE 는 영향 없음(0.8)", abs(res["VOICE_FAKE_PROB"] - 0.8) < 1e-9,
+          str(res["VOICE_FAKE_PROB"]))
+    check("FILE 도 원본 그대로(0.6)", abs(res["FILE_FAKE_PROB"] - 0.6) < 1e-9,
+          str(res["FILE_FAKE_PROB"]))
+    origin_calls = [c for c in scorer.calls if c[0] == 0.1]
+    check("원본을 한 번만 채점한다 (집계 같으면 공유)", len(origin_calls) == 1,
+          str(scorer.calls))
+    check("음악 스템은 아예 안 부른다", all(c[0] != 0.3 for c in scorer.calls),
+          str(scorer.calls))
+
+    # 집계가 다르면 공유하면 안 된다 — 값이 어긋난다
+    m.CONFIG["segment_agg_music"] = "mean"
+    scorer = AudioKeyedScorer()
+    m.process_one_file(Path("x.wav"), None, scorer, None, None)
+    check("집계가 다르면 원본을 각각 채점한다",
+          len([c for c in scorer.calls if c[0] == 0.1]) == 2, str(scorer.calls))
+    m.CONFIG["segment_agg_music"] = None
+
+    # 게이팅으로 분리를 건너뛴 음악 단독 파일 — 원본이 곧 음악이라 추가 호출이 없어야 한다
+    m.predict_presence = lambda panns, wav: (0.01, 0.9)
+    scorer = AudioKeyedScorer()
+    res = m.process_one_file(Path("x.wav"), None, scorer, None, None)
+    check("음악 단독 게이팅: 원본 채점 1회뿐",
+          len([c for c in scorer.calls if c[0] == 0.1]) == 1, str(scorer.calls))
+    check("그때 MUSIC 은 원본 값(0.6)", abs(res["MUSIC_FAKE_PROB"] - 0.6) < 1e-9,
+          str(res["MUSIC_FAKE_PROB"]))
+
+    m.CONFIG["music_source"] = "stem"
+    m.predict_presence = lambda panns, wav: (0.9, 0.9)
+    m.CONFIG["file_head"] = "fusion"
+    audio = np.full(64_000, 0.1, dtype=np.float32)
+    m.load_audio_16k = lambda p: audio
+    m.separate_voice_and_music = lambda wav, model, device: (audio, audio)
+
     print("\n[새 구조 — pipeline=direct, 분리 없이 세 판정]")
     with tempfile.TemporaryDirectory() as tmp:
         model_dir = Path(tmp)
