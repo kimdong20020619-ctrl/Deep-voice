@@ -10,7 +10,8 @@
               캐시 위에서 즉시 계산된다.
 
 스윕이 실제 추론과 어긋나지 않도록 **submit/script.py 의 process_one_file 을 그대로 호출**하고
-채점기만 캐시 기반으로 바꾼다. 로직을 베껴 쓰지 않으므로 divergence 가 생길 수 없다.
+채점기만 캐시 기반으로 바꾼다. 전처리·가중치·세그먼트 설정이 다르면 캐시가 무효이므로
+동일 파일에서 실제 추론과 캐시 예측을 대조해야 한다.
 
 주의: segment_agg 는 캐시된 세그먼트 점수 위에서 다시 계산되므로 스윕 가능하다.
       반면 short_pad · max_segments 는 세그먼트 자체를 바꾸므로 캐시가 무효다.
@@ -246,6 +247,17 @@ def predict(script, cache, config, music_probe=None, file_probe=None, multihead=
     ids = []
 
     try:
+        active_music = music_probe if script.CONFIG.get("music_head") == "probe" else None
+        active_file = (file_probe if script.CONFIG.get("file_probe") == "probe"
+                       and script.CONFIG.get("file_head") != "fusion" else None)
+        active_multihead = multihead if script.CONFIG.get("pipeline") == "direct" else None
+        if script.CONFIG.get("music_head") == "probe" and active_music is None:
+            raise ValueError("음악 프로브 후보에 학습된 프로브가 없습니다.")
+        if (script.CONFIG.get("file_probe") == "probe"
+                and script.CONFIG.get("file_head") != "fusion" and active_file is None):
+            raise ValueError("파일 프로브 후보에 학습된 프로브가 없습니다.")
+        if script.CONFIG.get("pipeline") == "direct" and active_multihead is None:
+            raise ValueError("direct 파이프라인 후보에 학습된 헤드가 없습니다.")
         for entry in cache:
             script.load_audio_16k = lambda _path: _marker(MARK_ORIGINAL)
             script.predict_presence = lambda _p, _a, e=entry: (e["vp"], e["mp"])
@@ -254,7 +266,7 @@ def predict(script, cache, config, music_probe=None, file_probe=None, multihead=
 
             result = script.process_one_file(
                 Path(entry["ID"]), None, CachedScorer(script, entry), None, None,
-                music_probe, file_probe, multihead)
+                active_music, active_file, active_multihead)
             ids.append(entry["ID"])
             for name in script.PREDICTION_COLUMNS:
                 columns[name].append(float(result[name]))
@@ -269,20 +281,34 @@ def predict(script, cache, config, music_probe=None, file_probe=None, multihead=
 
 
 def build_truth(label_rows, ids):
+    label_rows = list(label_rows)
+    ids = list(ids)
     index = {row["ID"]: row for row in label_rows}
+    if len(index) != len(label_rows) or len(set(ids)) != len(ids):
+        raise ValueError("정답 또는 예측에 중복 ID가 있습니다.")
+    missing, extra = set(index) - set(ids), set(ids) - set(index)
+    if missing or extra or not ids:
+        raise ValueError(f"검증 ID 불일치: 누락 {len(missing)}, 추가 {len(extra)}, "
+                         f"예측 {len(ids)}. 실패 파일을 제외한 채점은 허용하지 않습니다.")
     truth = {name: [] for name in
              ["FILE_FAKE_PROB", "VOICE_FAKE_PROB", "MUSIC_FAKE_PROB",
               "VOICE_PRESENT_PROB", "MUSIC_PRESENT_PROB"]}
     for audio_id in ids:
         row = index[audio_id]
         for name in truth:
-            truth[name].append(int(row[name]))
+            value = float(row[name])
+            if value not in (0.0, 1.0):
+                raise ValueError(f"{audio_id}: {name} 정답은 0 또는 1이어야 합니다.")
+            truth[name].append(int(value))
     return {name: np.asarray(values) for name, values in truth.items()}
 
 
 def sweep(script, cache, label_rows, configs, music_probe=None, baseline_name=None,
           file_probe=None, multihead=None):
     """설정 목록을 전부 평가하고 총점 내림차순으로 돌려준다."""
+    label_rows = list(label_rows)
+    cache = list(cache)
+    build_truth(label_rows, [entry["ID"] for entry in cache])
     results = []
     for name, config in configs:
         ids, predictions = predict(script, cache, config, music_probe, file_probe,

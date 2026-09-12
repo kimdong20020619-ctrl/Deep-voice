@@ -32,7 +32,9 @@ md("""
 # Deep-voice 제출 검증 (Colab)
 
 로컬에 GPU 가 없어 리더보드가 첫 테스트가 되는 상황을 피하기 위한 노트북이다.
-**런타임 유형을 GPU 로 바꾸고 실행한다.** 평가 서버는 L4 이므로 L4 를 고르면 가장 정확하다.
+**런타임 유형을 GPU 로 바꾸고 실행한다.** 무료로 배정된 GPU를 사용한다.
+T4 등에서의 성공은 L4 평가 서버의 시간·메모리 충족을 보장하지 않는다.
+이 노트북은 현재 개발 코드의 실행 검사이며, 보존 ZIP의 점수 재현이나 정확도 평가가 아니다.
 
 확인하는 것:
 
@@ -50,6 +52,7 @@ code("""
 !nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv
 import torch
 print("torch", torch.__version__, "| cuda", torch.version.cuda, "| available", torch.cuda.is_available())
+assert torch.cuda.is_available(), "GPU가 배정되지 않았습니다. 런타임 설정을 확인하세요."
 print("평가 서버: NVIDIA L4 22.4GiB / torch 2.7.1+cu128 / CUDA 12.8 / Python 3.11.15")
 """)
 
@@ -80,8 +83,14 @@ for p in sorted(WORK.rglob("*")):
 
 md("## 2. 평가 서버와 같은 패키지 설치")
 code("""
-# 평가 서버 기본 설치 목록과 맞춘다. Colab 은 torch 가 이미 있으므로 건드리지 않는다.
-!pip -q install demucs==4.0.1 panns-inference==0.1.1 "librosa==0.10.2.post1" soundfile soxr 2>&1 | tail -3
+# 설치 실패를 숨기지 않고 전체 로그를 저장한다. 서버와 환경이 완전히 같지는 않다.
+import subprocess, sys, pathlib
+installed = subprocess.run([sys.executable, "-m", "pip", "install",
+    "demucs==4.0.1", "panns-inference==0.1.1", "librosa==0.10.2.post1", "soundfile", "soxr"],
+    capture_output=True, text=True)
+pathlib.Path("/content/install.log").write_text(installed.stdout + installed.stderr)
+print((installed.stdout + installed.stderr)[-6000:])
+installed.check_returncode()
 import importlib
 for mod in ["librosa", "demucs", "panns_inference", "transformers", "torchaudio"]:
     m = importlib.import_module(mod)
@@ -228,6 +237,8 @@ if result.returncode != 0:
     print("=== STDERR ===")
     print(result.stderr[-6000:])
 print("\\nreturncode:", result.returncode)
+pathlib.Path("/content/inference.log").write_text(result.stdout + result.stderr)
+result.check_returncode()
 """)
 code("""
 import pandas as pd, pathlib
@@ -240,10 +251,17 @@ assert values.notna().all().all(), "결측값이 있다"
 assert list(df.columns) == ["ID", "FILE_FAKE_PROB", "VOICE_FAKE_PROB", "MUSIC_FAKE_PROB",
                             "VOICE_PRESENT_PROB", "MUSIC_PRESENT_PROB"], list(df.columns)
 
-# 융합식이 CONFIG["fusion_mode"]="baseline" 대로 계산됐는지 대조한다
-expected = (values["VOICE_PRESENT_PROB"] * values["VOICE_FAKE_PROB"]).combine(
-    values["MUSIC_PRESENT_PROB"] * values["MUSIC_FAKE_PROB"], max)
-assert (expected - values["FILE_FAKE_PROB"]).abs().max() < 1e-6, "FILE_FAKE 융합식 불일치"
+# direct 경로에는 fusion 식을 적용하지 않는다. 모델을 다시 로딩하지 않고 설정만 읽는다.
+import ast
+tree = ast.parse(pathlib.Path("/content/submit/script.py").read_text())
+cfg = next(ast.literal_eval(node.value) for node in tree.body if isinstance(node, ast.Assign)
+           and any(isinstance(t, ast.Name) and t.id == "CONFIG" for t in node.targets))
+if cfg.get("file_head", "fusion") == "fusion" and cfg.get("fusion_mode") == "baseline":
+    expected = (values["VOICE_PRESENT_PROB"] * values["VOICE_FAKE_PROB"]).combine(
+        values["MUSIC_PRESENT_PROB"] * values["MUSIC_FAKE_PROB"], max)
+    assert (expected - values["FILE_FAKE_PROB"]).abs().max() < 1e-6, "FILE_FAKE 융합식 불일치"
+else:
+    print("현재 FILE 경로는 baseline fusion 공식 검사 대상이 아닙니다:", cfg.get("file_head"))
 print("\\n형식 검사 통과")
 """)
 
@@ -275,10 +293,11 @@ print(f"\\n총 {elapsed:.1f}s, returncode {result.returncode}")
 """)
 
 md("""
-## 7. 1,200 파일 환산
+## 7. 길이별 새 프로세스 실행 비용 진단
 
-파일 수가 아니라 **오디오 길이당 처리 속도**로 환산해야 한다.
-평가 데이터는 4초~1분이고 평균값은 공개되지 않았으므로 여러 시나리오로 본다.
+각 파일마다 새 프로세스를 실행하므로 시작·종료 비용이 포함된다.
+이 결과를 순수 추론 속도나 대회 전체 실행 시간으로 환산하지 않는다.
+처리량은 모델을 한 번 로드하고 대표적인 여러 파일을 연속 처리하여 별도로 측정해야 한다.
 """)
 code("""
 import subprocess, pathlib, shutil, time, numpy as np, librosa
@@ -310,25 +329,21 @@ for seconds in durations:
     r = subprocess.run(["python","script.py"], cwd=WORK, capture_output=True, text=True)
     total = time.time() - t0
 
-    # 모델 로드 시간을 로그에서 빼서 순수 추론 시간을 얻는다
+    # 이 차이에는 import, 프로세스 시작/종료, 출력 저장 비용도 남는다.
     load = 0.0
     for line in r.stdout.splitlines():
         if "모델 로드" in line:
             load = float(line.split()[-1].rstrip("s"))
     infer = max(total - load, 0.01)
     per_second.append(infer / seconds)
-    print(f"{seconds:3d}초 파일: 전체 {total:6.1f}s, 로드 {load:5.1f}s, 추론 {infer:6.2f}s "
-          f"({infer/seconds:.3f} s/오디오초)")
+    print(f"{seconds:3d}초 파일: 프로세스 전체 {total:6.1f}s, 모델 로드 {load:5.1f}s, 나머지 {infer:6.2f}s")
 
     shutil.rmtree(WORK / "data"); shutil.move(str(backup), str(WORK / "data"))
+    if r.returncode != 0:
+        print(r.stderr[-6000:])
+        r.check_returncode()
 
-rate = float(np.median(per_second))
-print(f"\\n중앙값 처리 속도: {rate:.3f} 초 / 오디오 1초")
-print("\\n1,200 파일 환산 (60분 = 3600초 한계):")
-for avg in (10, 15, 20, 25, 30, 40):
-    est = rate * avg * 1200
-    mark = "OK" if est < 3600 * 0.7 else ("빠듯" if est < 3600 else "초과")
-    print(f"  평균 {avg:2d}초 -> {est/60:6.1f}분   [{mark}]")
+print("\\n대회 전체 시간 환산은 하지 않습니다. 단일 파일 새 프로세스 측정은 처리량 검증이 아닙니다.")
 """)
 
 md("""
@@ -338,17 +353,17 @@ md("""
 
 - 배치 패치 편차, bf16 편차 → 켜도 되는지 판단 근거
 - 포맷별 실패 여부 → 실패가 있으면 그것부터 고친다
-- 처리 속도와 1,200 파일 환산 → 60분에 여유가 있으면 **정확도에 재투자**한다
-  (속도는 점수가 아니다. CPS 는 존재 탐지 점수다)
+- 프로세스 전체 시간과 연속 파일 실행 결과를 구분해 기록한다.
+- 더미를 변형한 파일은 실제 혼합 음원의 분리 비용과 정확도를 대표하지 않는다.
 
-여유가 없으면 `CONFIG["demucs_gating"] = True` 를 켜서 분리 횟수를 줄인다.
+시간 제한 충족 여부는 대표 실음원과 평가 서버에 가까운 환경에서 별도로 확인한다.
 """)
 
 notebook = {
     "cells": CELLS,
     "metadata": {
         "accelerator": "GPU",
-        "colab": {"provenance": [], "gpuType": "L4"},
+        "colab": {"provenance": [], "gpuType": "T4"},
         "kernelspec": {"display_name": "Python 3", "name": "python3"},
         "language_info": {"name": "python"},
     },

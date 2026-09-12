@@ -28,7 +28,7 @@ from eval.metric import rank_score
 
 print("최종 순위")
 for rank, r in enumerate(results2, 1):
-    # Music EER 이 nan 이면 공식 총점도 nan 이다. rank_score 가 측정 가능한 항목만 재정규화한다.
+    # 공식 총점이 정의되지 않으면 rank_score는 오류를 내며 후보 선정을 중단한다.
     print(f"{rank:>2}. {r['name']:<28} Score {rank_score(r):.5f}  "
           f"(file {r['file_eer']:.4f} / voice {r['voice_eer']:.4f} / music {r['music_eer']:.4f})")
 print("\n최고 설정 CONFIG 덮어쓰기:")

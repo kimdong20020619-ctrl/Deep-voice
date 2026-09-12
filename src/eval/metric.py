@@ -122,9 +122,12 @@ def evaluate(predictions, truth):
 
 
 def rank_score(result):
-    """순위용 점수. 공식 총점이 nan 이면 재정규화 점수로 대체한다."""
+    """모든 평가 항목이 정의된 경우에만 공식 총점으로 순위를 정한다."""
     score = result["score"]
-    return score if not np.isnan(score) else result["score_partial"]
+    if not np.isfinite(score):
+        raise ValueError("공식 총점이 정의되지 않습니다. 각 평가 항목의 양쪽 클래스를 확보하세요. "
+                         "부분 점수로 제출 후보 순위를 정할 수 없습니다.")
+    return score
 
 
 def format_result(result, label=""):

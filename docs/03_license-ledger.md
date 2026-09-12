@@ -83,6 +83,18 @@ DFADD, CTRSVDD, SpoofCeleb, MLAAD, EnvSDD
 
 ## 데이터셋 — 미채택 (P2에서 확정)
 
+### 2026-09-11 원문 및 표본 확인
+
+아래는 실제 학습 채택과 구분한 조사 상태다. 전체 구성과 분할 계획은 `13_music-data-audit-20260911.md`에 있다.
+
+| 자원 | 확인된 이용 조건 | 공식 근거 | 상태 |
+|---|---|---|---|
+| FakeMusicCaps v2 | Zenodo API의 license.id = cc-by-nc-4.0; 저자 저장소 LICENSE도 일치 | https://zenodo.org/api/records/15063698 · https://github.com/polimi-ispl/FakeMusicCaps/blob/main/LICENSE | 공식 오디오 표본 확보. 보컬·성분 라벨 검토 전이므로 학습 미채택 |
+| MUSAN | 배포 페이지 CC BY 4.0; 논문은 파일별 LICENSE·보컬 ANNOTATIONS 제공을 명시 | https://www.openslr.org/17/ · https://arxiv.org/html/1510.08484 | 진짜 반주 우선 후보. 원본·파일별 조건·주석 미확보 |
+| SONICS | CC BY-NC 4.0 외 Suno/Udio 경쟁 제품 연구 제한 및 서비스 약관 준수 조건 명시 | https://github.com/awsaf49/sonics/blob/main/LICENSE | 보류. 보컬 포함·부분 생성 라벨도 성분별로 해석해야 함 |
+
+DeepFense 미러의 Apache-2.0 표기를 FakeMusicCaps 원본 오디오의 이용 조건으로 사용하지 않는다. 원 배포자의 조건을 유지하고 출처·변경 내역을 기록한다.
+
 | 자원 | 용도 | 라이선스 | 출처 URL | 확인일 | 판정 |
 |---|---|---|---|---|---|
 | _(P2에서 채운다)_ | | | | | |

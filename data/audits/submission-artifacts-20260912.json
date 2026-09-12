@@ -1,0 +1,844 @@
+{
+  "artifacts": [
+    {
+      "archive": "submit.zip",
+      "archive_bytes": 5165498041,
+      "uncompressed_bytes": 5003446335,
+      "script_sha256": "8ef622e27358932d570b212a4bab8df3be7af5059f8155624a8ce68620ff38bc",
+      "config": {
+        "fusion_mode": "baseline",
+        "fusion_gate": 0.5,
+        "fusion_gamma": 0.5,
+        "file_head": "direct",
+        "segment_agg": "max",
+        "segment_topk": 2,
+        "segment_topk_ratio": 0.0,
+        "segment_agg_voice": null,
+        "segment_agg_music": null,
+        "music_head": "none",
+        "music_constant": 0.5,
+        "music_head_blend": 1.0,
+        "short_pad": "tile",
+        "demucs_gating": true,
+        "gate_voice": 0.2,
+        "gate_music": 0.1,
+        "silence_rms": 1e-05,
+        "max_segments": 0,
+        "use_bf16": true,
+        "batch_size": 8,
+        "batch_patch": true,
+        "demucs_on_gpu": true
+      },
+      "models_directory_metadata": [
+        {
+          "name": "model/df_arena_1b/__init__.py",
+          "bytes": 0,
+          "crc32": "00000000"
+        },
+        {
+          "name": "model/df_arena_1b/backbone.py",
+          "bytes": 2344,
+          "crc32": "5bf08fe3"
+        },
+        {
+          "name": "model/df_arena_1b/config.json",
+          "bytes": 600,
+          "crc32": "8622c992"
+        },
+        {
+          "name": "model/df_arena_1b/configuration_antispoofing.py",
+          "bytes": 325,
+          "crc32": "82bda91f"
+        },
+        {
+          "name": "model/df_arena_1b/conformer.py",
+          "bytes": 8741,
+          "crc32": "b68d375e"
+        },
+        {
+          "name": "model/df_arena_1b/facebook/wav2vec2-xls-r-1b/config.json",
+          "bytes": 1570,
+          "crc32": "591c9da6"
+        },
+        {
+          "name": "model/df_arena_1b/feature_extraction_antispoofing.py",
+          "bytes": 1046,
+          "crc32": "dffb32b9"
+        },
+        {
+          "name": "model/df_arena_1b/LICENSE.txt",
+          "bytes": 3264,
+          "crc32": "818307f3"
+        },
+        {
+          "name": "model/df_arena_1b/modeling_antispoofing.py",
+          "bytes": 822,
+          "crc32": "3e762c53"
+        },
+        {
+          "name": "model/df_arena_1b/pipeline_antispoofing.py",
+          "bytes": 1502,
+          "crc32": "6448471f"
+        },
+        {
+          "name": "model/df_arena_1b/preprocessor_config.json",
+          "bytes": 147,
+          "crc32": "ef4eef68"
+        },
+        {
+          "name": "model/df_arena_1b/pytorch_model.bin",
+          "bytes": 4591794734,
+          "crc32": "92dba1d4"
+        },
+        {
+          "name": "model/df_arena_1b/README.md",
+          "bytes": 3043,
+          "crc32": "417165ee"
+        },
+        {
+          "name": "model/htdemucs/955717e8-8726e21a.th",
+          "bytes": 84141911,
+          "crc32": "6f4d7f9f"
+        },
+        {
+          "name": "model/htdemucs/htdemucs.yaml",
+          "bytes": 21,
+          "crc32": "3b707354"
+        },
+        {
+          "name": "model/MODEL_INFO.txt",
+          "bytes": 288,
+          "crc32": "6d723904"
+        },
+        {
+          "name": "model/panns/class_labels_indices.csv",
+          "bytes": 14675,
+          "crc32": "bab9c9d2"
+        },
+        {
+          "name": "model/panns/Cnn14_mAP=0.431.pth",
+          "bytes": 327428481,
+          "crc32": "cd71e9ad"
+        },
+        {
+          "name": "model/panns/component_labels.json",
+          "bytes": 2664,
+          "crc32": "68030a24"
+        },
+        {
+          "name": "model/SHA256SUMS.txt",
+          "bytes": 284,
+          "crc32": "344d5267"
+        }
+      ],
+      "full_archive_hash_verified": false,
+      "model_payload_hash_verified": false,
+      "leaderboard_score": null,
+      "score_mapping_status": "requires_submission_receipt"
+    },
+    {
+      "archive": "submit_diag.zip",
+      "archive_bytes": 5165498046,
+      "uncompressed_bytes": 5003446339,
+      "script_sha256": "6f9c8e75a97f2e9350843a3b3a3ef22a358166cab5c2a6e1d235846ef167b300",
+      "config": {
+        "fusion_mode": "baseline",
+        "fusion_gate": 0.5,
+        "fusion_gamma": 0.5,
+        "file_head": "direct",
+        "segment_agg": "max",
+        "segment_topk": 2,
+        "segment_topk_ratio": 0.0,
+        "segment_agg_voice": null,
+        "segment_agg_music": null,
+        "music_head": "constant",
+        "music_constant": 0.5,
+        "music_head_blend": 1.0,
+        "short_pad": "tile",
+        "demucs_gating": true,
+        "gate_voice": 0.2,
+        "gate_music": 0.1,
+        "silence_rms": 1e-05,
+        "max_segments": 0,
+        "use_bf16": true,
+        "batch_size": 8,
+        "batch_patch": true,
+        "demucs_on_gpu": true
+      },
+      "models_directory_metadata": [
+        {
+          "name": "model/df_arena_1b/__init__.py",
+          "bytes": 0,
+          "crc32": "00000000"
+        },
+        {
+          "name": "model/df_arena_1b/backbone.py",
+          "bytes": 2344,
+          "crc32": "5bf08fe3"
+        },
+        {
+          "name": "model/df_arena_1b/config.json",
+          "bytes": 600,
+          "crc32": "8622c992"
+        },
+        {
+          "name": "model/df_arena_1b/configuration_antispoofing.py",
+          "bytes": 325,
+          "crc32": "82bda91f"
+        },
+        {
+          "name": "model/df_arena_1b/conformer.py",
+          "bytes": 8741,
+          "crc32": "b68d375e"
+        },
+        {
+          "name": "model/df_arena_1b/facebook/wav2vec2-xls-r-1b/config.json",
+          "bytes": 1570,
+          "crc32": "591c9da6"
+        },
+        {
+          "name": "model/df_arena_1b/feature_extraction_antispoofing.py",
+          "bytes": 1046,
+          "crc32": "dffb32b9"
+        },
+        {
+          "name": "model/df_arena_1b/LICENSE.txt",
+          "bytes": 3264,
+          "crc32": "818307f3"
+        },
+        {
+          "name": "model/df_arena_1b/modeling_antispoofing.py",
+          "bytes": 822,
+          "crc32": "3e762c53"
+        },
+        {
+          "name": "model/df_arena_1b/pipeline_antispoofing.py",
+          "bytes": 1502,
+          "crc32": "6448471f"
+        },
+        {
+          "name": "model/df_arena_1b/preprocessor_config.json",
+          "bytes": 147,
+          "crc32": "ef4eef68"
+        },
+        {
+          "name": "model/df_arena_1b/pytorch_model.bin",
+          "bytes": 4591794734,
+          "crc32": "92dba1d4"
+        },
+        {
+          "name": "model/df_arena_1b/README.md",
+          "bytes": 3043,
+          "crc32": "417165ee"
+        },
+        {
+          "name": "model/htdemucs/955717e8-8726e21a.th",
+          "bytes": 84141911,
+          "crc32": "6f4d7f9f"
+        },
+        {
+          "name": "model/htdemucs/htdemucs.yaml",
+          "bytes": 21,
+          "crc32": "3b707354"
+        },
+        {
+          "name": "model/MODEL_INFO.txt",
+          "bytes": 288,
+          "crc32": "6d723904"
+        },
+        {
+          "name": "model/panns/class_labels_indices.csv",
+          "bytes": 14675,
+          "crc32": "bab9c9d2"
+        },
+        {
+          "name": "model/panns/Cnn14_mAP=0.431.pth",
+          "bytes": 327428481,
+          "crc32": "cd71e9ad"
+        },
+        {
+          "name": "model/panns/component_labels.json",
+          "bytes": 2664,
+          "crc32": "68030a24"
+        },
+        {
+          "name": "model/SHA256SUMS.txt",
+          "bytes": 284,
+          "crc32": "344d5267"
+        }
+      ],
+      "full_archive_hash_verified": false,
+      "model_payload_hash_verified": false,
+      "leaderboard_score": null,
+      "score_mapping_status": "requires_submission_receipt"
+    },
+    {
+      "archive": "submit_diag_voice.zip",
+      "archive_bytes": 5165499641,
+      "uncompressed_bytes": 5003450339,
+      "script_sha256": "d25d35280529b38a4dcf9aca65195a1f54baea393695735c22f85291b0c4f3ed",
+      "config": {
+        "fusion_mode": "baseline",
+        "fusion_gate": 0.5,
+        "fusion_gamma": 0.5,
+        "file_head": "direct",
+        "segment_agg": "max",
+        "segment_topk": 2,
+        "segment_topk_ratio": 0.0,
+        "segment_agg_voice": null,
+        "segment_agg_music": null,
+        "music_head": "none",
+        "music_constant": 0.5,
+        "voice_head": "constant",
+        "voice_constant": 0.5,
+        "file_probe": "none",
+        "file_probe_blend": 1.0,
+        "music_head_blend": 1.0,
+        "short_pad": "tile",
+        "demucs_gating": true,
+        "gate_voice": 0.2,
+        "gate_music": 0.1,
+        "silence_rms": 1e-05,
+        "max_segments": 0,
+        "use_bf16": true,
+        "batch_size": 8,
+        "batch_patch": true,
+        "demucs_on_gpu": true
+      },
+      "models_directory_metadata": [
+        {
+          "name": "model/df_arena_1b/__init__.py",
+          "bytes": 0,
+          "crc32": "00000000"
+        },
+        {
+          "name": "model/df_arena_1b/backbone.py",
+          "bytes": 2344,
+          "crc32": "5bf08fe3"
+        },
+        {
+          "name": "model/df_arena_1b/config.json",
+          "bytes": 600,
+          "crc32": "8622c992"
+        },
+        {
+          "name": "model/df_arena_1b/configuration_antispoofing.py",
+          "bytes": 325,
+          "crc32": "82bda91f"
+        },
+        {
+          "name": "model/df_arena_1b/conformer.py",
+          "bytes": 8741,
+          "crc32": "b68d375e"
+        },
+        {
+          "name": "model/df_arena_1b/facebook/wav2vec2-xls-r-1b/config.json",
+          "bytes": 1570,
+          "crc32": "591c9da6"
+        },
+        {
+          "name": "model/df_arena_1b/feature_extraction_antispoofing.py",
+          "bytes": 1046,
+          "crc32": "dffb32b9"
+        },
+        {
+          "name": "model/df_arena_1b/LICENSE.txt",
+          "bytes": 3264,
+          "crc32": "818307f3"
+        },
+        {
+          "name": "model/df_arena_1b/modeling_antispoofing.py",
+          "bytes": 822,
+          "crc32": "3e762c53"
+        },
+        {
+          "name": "model/df_arena_1b/pipeline_antispoofing.py",
+          "bytes": 1502,
+          "crc32": "6448471f"
+        },
+        {
+          "name": "model/df_arena_1b/preprocessor_config.json",
+          "bytes": 147,
+          "crc32": "ef4eef68"
+        },
+        {
+          "name": "model/df_arena_1b/pytorch_model.bin",
+          "bytes": 4591794734,
+          "crc32": "92dba1d4"
+        },
+        {
+          "name": "model/df_arena_1b/README.md",
+          "bytes": 3043,
+          "crc32": "417165ee"
+        },
+        {
+          "name": "model/htdemucs/955717e8-8726e21a.th",
+          "bytes": 84141911,
+          "crc32": "6f4d7f9f"
+        },
+        {
+          "name": "model/htdemucs/htdemucs.yaml",
+          "bytes": 21,
+          "crc32": "3b707354"
+        },
+        {
+          "name": "model/MODEL_INFO.txt",
+          "bytes": 288,
+          "crc32": "6d723904"
+        },
+        {
+          "name": "model/panns/class_labels_indices.csv",
+          "bytes": 14675,
+          "crc32": "bab9c9d2"
+        },
+        {
+          "name": "model/panns/Cnn14_mAP=0.431.pth",
+          "bytes": 327428481,
+          "crc32": "cd71e9ad"
+        },
+        {
+          "name": "model/panns/component_labels.json",
+          "bytes": 2664,
+          "crc32": "68030a24"
+        },
+        {
+          "name": "model/SHA256SUMS.txt",
+          "bytes": 284,
+          "crc32": "344d5267"
+        }
+      ],
+      "full_archive_hash_verified": false,
+      "model_payload_hash_verified": false,
+      "leaderboard_score": null,
+      "score_mapping_status": "requires_submission_receipt"
+    },
+    {
+      "archive": "submit_musicagg.zip",
+      "archive_bytes": 5165501997,
+      "uncompressed_bytes": 5003455495,
+      "script_sha256": "f1470acf6eefa55dee8652765c453c45f25a8b1ef0960e9ca8ccd748d55bf7fc",
+      "config": {
+        "fusion_mode": "baseline",
+        "fusion_gate": 0.5,
+        "fusion_gamma": 0.5,
+        "file_head": "direct",
+        "segment_agg": "max",
+        "segment_topk": 2,
+        "segment_topk_ratio": 0.0,
+        "segment_agg_voice": null,
+        "segment_agg_music": "mean",
+        "music_head": "none",
+        "music_constant": 0.5,
+        "pipeline": "separate",
+        "backend_ft": "auto",
+        "voice_head": "none",
+        "voice_constant": 0.5,
+        "file_probe": "none",
+        "file_probe_blend": 1.0,
+        "music_head_blend": 1.0,
+        "short_pad": "tile",
+        "demucs_gating": true,
+        "gate_voice": 0.2,
+        "gate_music": 0.1,
+        "silence_rms": 1e-05,
+        "max_segments": 0,
+        "use_bf16": true,
+        "batch_size": 8,
+        "batch_patch": true,
+        "demucs_on_gpu": true
+      },
+      "models_directory_metadata": [
+        {
+          "name": "model/df_arena_1b/__init__.py",
+          "bytes": 0,
+          "crc32": "00000000"
+        },
+        {
+          "name": "model/df_arena_1b/backbone.py",
+          "bytes": 2344,
+          "crc32": "5bf08fe3"
+        },
+        {
+          "name": "model/df_arena_1b/config.json",
+          "bytes": 600,
+          "crc32": "8622c992"
+        },
+        {
+          "name": "model/df_arena_1b/configuration_antispoofing.py",
+          "bytes": 325,
+          "crc32": "82bda91f"
+        },
+        {
+          "name": "model/df_arena_1b/conformer.py",
+          "bytes": 8741,
+          "crc32": "b68d375e"
+        },
+        {
+          "name": "model/df_arena_1b/facebook/wav2vec2-xls-r-1b/config.json",
+          "bytes": 1570,
+          "crc32": "591c9da6"
+        },
+        {
+          "name": "model/df_arena_1b/feature_extraction_antispoofing.py",
+          "bytes": 1046,
+          "crc32": "dffb32b9"
+        },
+        {
+          "name": "model/df_arena_1b/LICENSE.txt",
+          "bytes": 3264,
+          "crc32": "818307f3"
+        },
+        {
+          "name": "model/df_arena_1b/modeling_antispoofing.py",
+          "bytes": 822,
+          "crc32": "3e762c53"
+        },
+        {
+          "name": "model/df_arena_1b/pipeline_antispoofing.py",
+          "bytes": 1502,
+          "crc32": "6448471f"
+        },
+        {
+          "name": "model/df_arena_1b/preprocessor_config.json",
+          "bytes": 147,
+          "crc32": "ef4eef68"
+        },
+        {
+          "name": "model/df_arena_1b/pytorch_model.bin",
+          "bytes": 4591794734,
+          "crc32": "92dba1d4"
+        },
+        {
+          "name": "model/df_arena_1b/README.md",
+          "bytes": 3043,
+          "crc32": "417165ee"
+        },
+        {
+          "name": "model/htdemucs/955717e8-8726e21a.th",
+          "bytes": 84141911,
+          "crc32": "6f4d7f9f"
+        },
+        {
+          "name": "model/htdemucs/htdemucs.yaml",
+          "bytes": 21,
+          "crc32": "3b707354"
+        },
+        {
+          "name": "model/MODEL_INFO.txt",
+          "bytes": 288,
+          "crc32": "6d723904"
+        },
+        {
+          "name": "model/panns/class_labels_indices.csv",
+          "bytes": 14675,
+          "crc32": "bab9c9d2"
+        },
+        {
+          "name": "model/panns/Cnn14_mAP=0.431.pth",
+          "bytes": 327428481,
+          "crc32": "cd71e9ad"
+        },
+        {
+          "name": "model/panns/component_labels.json",
+          "bytes": 2664,
+          "crc32": "68030a24"
+        },
+        {
+          "name": "model/SHA256SUMS.txt",
+          "bytes": 284,
+          "crc32": "344d5267"
+        }
+      ],
+      "full_archive_hash_verified": false,
+      "model_payload_hash_verified": false,
+      "leaderboard_score": null,
+      "score_mapping_status": "requires_submission_receipt"
+    },
+    {
+      "archive": "submit_musicorig.zip",
+      "archive_bytes": 5165503140,
+      "uncompressed_bytes": 5003458051,
+      "script_sha256": "0eeac48a831c57d1738f01a0d59ec2912bbca034f49e7e9dd7078125e978d786",
+      "config": {
+        "fusion_mode": "baseline",
+        "fusion_gate": 0.5,
+        "fusion_gamma": 0.5,
+        "file_head": "direct",
+        "segment_agg": "max",
+        "segment_topk": 2,
+        "segment_topk_ratio": 0.0,
+        "segment_agg_voice": null,
+        "segment_agg_music": null,
+        "music_head": "none",
+        "music_constant": 0.5,
+        "music_source": "original",
+        "pipeline": "separate",
+        "backend_ft": "auto",
+        "voice_head": "none",
+        "voice_constant": 0.5,
+        "file_probe": "none",
+        "file_probe_blend": 1.0,
+        "music_head_blend": 1.0,
+        "short_pad": "tile",
+        "demucs_gating": true,
+        "gate_voice": 0.2,
+        "gate_music": 0.1,
+        "silence_rms": 1e-05,
+        "max_segments": 0,
+        "use_bf16": true,
+        "batch_size": 8,
+        "batch_patch": true,
+        "demucs_on_gpu": true
+      },
+      "models_directory_metadata": [
+        {
+          "name": "model/df_arena_1b/__init__.py",
+          "bytes": 0,
+          "crc32": "00000000"
+        },
+        {
+          "name": "model/df_arena_1b/backbone.py",
+          "bytes": 2344,
+          "crc32": "5bf08fe3"
+        },
+        {
+          "name": "model/df_arena_1b/config.json",
+          "bytes": 600,
+          "crc32": "8622c992"
+        },
+        {
+          "name": "model/df_arena_1b/configuration_antispoofing.py",
+          "bytes": 325,
+          "crc32": "82bda91f"
+        },
+        {
+          "name": "model/df_arena_1b/conformer.py",
+          "bytes": 8741,
+          "crc32": "b68d375e"
+        },
+        {
+          "name": "model/df_arena_1b/facebook/wav2vec2-xls-r-1b/config.json",
+          "bytes": 1570,
+          "crc32": "591c9da6"
+        },
+        {
+          "name": "model/df_arena_1b/feature_extraction_antispoofing.py",
+          "bytes": 1046,
+          "crc32": "dffb32b9"
+        },
+        {
+          "name": "model/df_arena_1b/LICENSE.txt",
+          "bytes": 3264,
+          "crc32": "818307f3"
+        },
+        {
+          "name": "model/df_arena_1b/modeling_antispoofing.py",
+          "bytes": 822,
+          "crc32": "3e762c53"
+        },
+        {
+          "name": "model/df_arena_1b/pipeline_antispoofing.py",
+          "bytes": 1502,
+          "crc32": "6448471f"
+        },
+        {
+          "name": "model/df_arena_1b/preprocessor_config.json",
+          "bytes": 147,
+          "crc32": "ef4eef68"
+        },
+        {
+          "name": "model/df_arena_1b/pytorch_model.bin",
+          "bytes": 4591794734,
+          "crc32": "92dba1d4"
+        },
+        {
+          "name": "model/df_arena_1b/README.md",
+          "bytes": 3043,
+          "crc32": "417165ee"
+        },
+        {
+          "name": "model/htdemucs/955717e8-8726e21a.th",
+          "bytes": 84141911,
+          "crc32": "6f4d7f9f"
+        },
+        {
+          "name": "model/htdemucs/htdemucs.yaml",
+          "bytes": 21,
+          "crc32": "3b707354"
+        },
+        {
+          "name": "model/MODEL_INFO.txt",
+          "bytes": 288,
+          "crc32": "6d723904"
+        },
+        {
+          "name": "model/panns/class_labels_indices.csv",
+          "bytes": 14675,
+          "crc32": "bab9c9d2"
+        },
+        {
+          "name": "model/panns/Cnn14_mAP=0.431.pth",
+          "bytes": 327428481,
+          "crc32": "cd71e9ad"
+        },
+        {
+          "name": "model/panns/component_labels.json",
+          "bytes": 2664,
+          "crc32": "68030a24"
+        },
+        {
+          "name": "model/SHA256SUMS.txt",
+          "bytes": 284,
+          "crc32": "344d5267"
+        }
+      ],
+      "full_archive_hash_verified": false,
+      "model_payload_hash_verified": false,
+      "leaderboard_score": null,
+      "score_mapping_status": "requires_submission_receipt"
+    },
+    {
+      "archive": "submit_silence.zip",
+      "archive_bytes": 5165501998,
+      "uncompressed_bytes": 5003455493,
+      "script_sha256": "981318a5c981418d7980a4355da59397426a4a202814d5f4c6b19998dc43c929",
+      "config": {
+        "fusion_mode": "baseline",
+        "fusion_gate": 0.5,
+        "fusion_gamma": 0.5,
+        "file_head": "direct",
+        "segment_agg": "max",
+        "segment_topk": 2,
+        "segment_topk_ratio": 0.0,
+        "segment_agg_voice": null,
+        "segment_agg_music": null,
+        "music_head": "none",
+        "music_constant": 0.5,
+        "pipeline": "separate",
+        "backend_ft": "auto",
+        "voice_head": "none",
+        "voice_constant": 0.5,
+        "file_probe": "none",
+        "file_probe_blend": 1.0,
+        "music_head_blend": 1.0,
+        "short_pad": "tile",
+        "demucs_gating": true,
+        "gate_voice": 0.2,
+        "gate_music": 0.1,
+        "silence_rms": 0.001,
+        "max_segments": 0,
+        "use_bf16": true,
+        "batch_size": 8,
+        "batch_patch": true,
+        "demucs_on_gpu": true
+      },
+      "models_directory_metadata": [
+        {
+          "name": "model/df_arena_1b/__init__.py",
+          "bytes": 0,
+          "crc32": "00000000"
+        },
+        {
+          "name": "model/df_arena_1b/backbone.py",
+          "bytes": 2344,
+          "crc32": "5bf08fe3"
+        },
+        {
+          "name": "model/df_arena_1b/config.json",
+          "bytes": 600,
+          "crc32": "8622c992"
+        },
+        {
+          "name": "model/df_arena_1b/configuration_antispoofing.py",
+          "bytes": 325,
+          "crc32": "82bda91f"
+        },
+        {
+          "name": "model/df_arena_1b/conformer.py",
+          "bytes": 8741,
+          "crc32": "b68d375e"
+        },
+        {
+          "name": "model/df_arena_1b/facebook/wav2vec2-xls-r-1b/config.json",
+          "bytes": 1570,
+          "crc32": "591c9da6"
+        },
+        {
+          "name": "model/df_arena_1b/feature_extraction_antispoofing.py",
+          "bytes": 1046,
+          "crc32": "dffb32b9"
+        },
+        {
+          "name": "model/df_arena_1b/LICENSE.txt",
+          "bytes": 3264,
+          "crc32": "818307f3"
+        },
+        {
+          "name": "model/df_arena_1b/modeling_antispoofing.py",
+          "bytes": 822,
+          "crc32": "3e762c53"
+        },
+        {
+          "name": "model/df_arena_1b/pipeline_antispoofing.py",
+          "bytes": 1502,
+          "crc32": "6448471f"
+        },
+        {
+          "name": "model/df_arena_1b/preprocessor_config.json",
+          "bytes": 147,
+          "crc32": "ef4eef68"
+        },
+        {
+          "name": "model/df_arena_1b/pytorch_model.bin",
+          "bytes": 4591794734,
+          "crc32": "92dba1d4"
+        },
+        {
+          "name": "model/df_arena_1b/README.md",
+          "bytes": 3043,
+          "crc32": "417165ee"
+        },
+        {
+          "name": "model/htdemucs/955717e8-8726e21a.th",
+          "bytes": 84141911,
+          "crc32": "6f4d7f9f"
+        },
+        {
+          "name": "model/htdemucs/htdemucs.yaml",
+          "bytes": 21,
+          "crc32": "3b707354"
+        },
+        {
+          "name": "model/MODEL_INFO.txt",
+          "bytes": 288,
+          "crc32": "6d723904"
+        },
+        {
+          "name": "model/panns/class_labels_indices.csv",
+          "bytes": 14675,
+          "crc32": "bab9c9d2"
+        },
+        {
+          "name": "model/panns/Cnn14_mAP=0.431.pth",
+          "bytes": 327428481,
+          "crc32": "cd71e9ad"
+        },
+        {
+          "name": "model/panns/component_labels.json",
+          "bytes": 2664,
+          "crc32": "68030a24"
+        },
+        {
+          "name": "model/SHA256SUMS.txt",
+          "bytes": 284,
+          "crc32": "344d5267"
+        }
+      ],
+      "full_archive_hash_verified": false,
+      "model_payload_hash_verified": false,
+      "leaderboard_score": null,
+      "score_mapping_status": "requires_submission_receipt"
+    }
+  ],
+  "warning": "ZIP directory CRC/size equality is not proof of identical model bytes or uploaded artifact identity."
+}

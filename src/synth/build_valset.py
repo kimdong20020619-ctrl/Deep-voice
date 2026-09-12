@@ -18,12 +18,14 @@
 """
 
 import csv
+import math
 import random
 import subprocess
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
+from scipy.signal import resample_poly
 
 SAMPLE_RATE = 16_000
 LABEL_COLUMNS = [
@@ -62,12 +64,12 @@ def load_16k_mono(path, rng, min_seconds=1.0):
         return None
     audio = audio.mean(axis=1)
     if sr != SAMPLE_RATE:
-        # 의존성을 늘리지 않으려고 선형 보간으로 리샘플한다. 검증셋 생성용이라 충분하다.
+        # 고역의 접힘이 위조 탐지 단서가 되지 않도록 저역통과를 포함해 리샘플한다.
         target_len = int(round(audio.size * SAMPLE_RATE / sr))
         if target_len < 2:
             return None
-        audio = np.interp(np.linspace(0, audio.size - 1, target_len),
-                          np.arange(audio.size), audio).astype(np.float32)
+        divisor = math.gcd(int(sr), SAMPLE_RATE)
+        audio = resample_poly(audio, SAMPLE_RATE // divisor, int(sr) // divisor).astype(np.float32)
     if audio.size < int(min_seconds * SAMPLE_RATE) or rms(audio) < 1e-5:
         return None
     return audio
@@ -193,22 +195,26 @@ def build(sources, out_dir, count=400, seed=0, formats=("wav", "mp3", "flac"),
 
     sources: {"voice_real": [경로...], "voice_fake": [...],
               "music_real": [...], "music_fake": [...]}
-    가짜 음악 소스가 없으면 음악 FAKE 구성을 자동으로 건너뛴다 (Music EER 은 nan 이 된다).
+    네 종류의 소스가 모두 있어야 한다. 없는 클래스를 제외해 후보 선택을 왜곡하지 않는다.
     """
     rng = np.random.default_rng(seed)
     random.seed(seed)
 
+    available = {key: list(paths) for key, paths in sources.items() if paths}
+    for paths in available.values():
+        for path in paths:
+            parts = str(path).replace("\\", "/").split("/")
+            if "__MACOSX" in parts or parts[-1].startswith("._"):
+                raise ValueError(f"오디오가 아닌 macOS 메타데이터가 소스에 포함됐습니다: {path}")
+    for key in ("voice_real", "voice_fake", "music_real", "music_fake"):
+        if not available.get(key):
+            raise ValueError(f"소스가 비었다: {key}. 전체 평가 지표를 위한 네 종류가 필요합니다.")
+    if count <= 0:
+        raise ValueError("count는 양수여야 합니다.")
     out_dir = Path(out_dir)
     (out_dir / "test").mkdir(parents=True, exist_ok=True)
 
-    available = {key: list(paths) for key, paths in sources.items() if paths}
-    for key in ("voice_real", "voice_fake", "music_real"):
-        assert available.get(key), f"소스가 비었다: {key}"
-    has_fake_music = bool(available.get("music_fake"))
-    if not has_fake_music:
-        print("[warn] music_fake 소스가 없다. 음악 FAKE 구성을 제외한다 -> Music EER 계산 불가")
-
-    compositions = [c for c in COMPOSITIONS if has_fake_music or not c[4]]
+    compositions = COMPOSITIONS
     weights = np.array([c[5] for c in compositions], dtype=np.float64)
     weights /= weights.sum()
 
@@ -223,15 +229,18 @@ def build(sources, out_dir, count=400, seed=0, formats=("wav", "mp3", "flac"),
         seconds = float(rng.uniform(4.0, 60.0))
 
         voice = music = None
+        voice_source = music_source = ""
         if has_voice:
             key = "voice_fake" if voice_fake else "voice_real"
-            voice = load_16k_mono(random.choice(available[key]), rng)
+            voice_source = str(random.choice(available[key]))
+            voice = load_16k_mono(voice_source, rng)
             if voice is None:
                 continue
             voice = normalize(take_span(voice, seconds, rng))
         if has_music:
             key = "music_fake" if music_fake else "music_real"
-            music = load_16k_mono(random.choice(available[key]), rng)
+            music_source = str(random.choice(available[key]))
+            music = load_16k_mono(music_source, rng)
             if music is None:
                 continue
             music = normalize(take_span(music, seconds, rng), target_rms=0.04)
@@ -267,6 +276,8 @@ def build(sources, out_dir, count=400, seed=0, formats=("wav", "mp3", "flac"),
         rows.append({
             "ID": audio_id,
             "composition": name,
+            "voice_source": voice_source,
+            "music_source": music_source,
             "seconds": round(audio.size / SAMPLE_RATE, 2),
             "format": fmt,
             "stereo": int(stereo),
@@ -277,6 +288,17 @@ def build(sources, out_dir, count=400, seed=0, formats=("wav", "mp3", "flac"),
             "MUSIC_PRESENT_PROB": int(has_music),
         })
         made += 1
+
+    if made != count:
+        raise RuntimeError(f"검증셋 생성 미완료: 요청 {count}, 생성 {made}. 원본과 디코딩을 확인하세요.")
+    for label, presence in (("FILE_FAKE_PROB", None),
+                            ("VOICE_FAKE_PROB", "VOICE_PRESENT_PROB"),
+                            ("MUSIC_FAKE_PROB", "MUSIC_PRESENT_PROB"),
+                            ("VOICE_PRESENT_PROB", None),
+                            ("MUSIC_PRESENT_PROB", None)):
+        values = {row[label] for row in rows if presence is None or row[presence] == 1}
+        if values != {0, 1}:
+            raise ValueError(f"{label}의 양쪽 클래스가 없습니다. 표본 수와 원본 구성을 확인하세요.")
 
     with (out_dir / "labels.csv").open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=list(rows[0].keys()))
