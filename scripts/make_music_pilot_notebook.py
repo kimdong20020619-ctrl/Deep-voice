@@ -84,7 +84,7 @@ model_code = ''.join(verified["cells"][8]["source"]).replace('WORK = pathlib.Pat
 add("code", """
 import pathlib, hashlib, shutil, os
 MODEL = WORK / "model"
-def digest(path):
+def pilot_file_sha256(path):
     h = hashlib.sha256()
     with path.open("rb") as f:
         for block in iter(lambda: f.read(4 * 1024**2), b""):
@@ -95,14 +95,14 @@ expected = dict(line.split() for line in (MODEL / "SHA256SUMS.txt").read_text().
 for checksum, relative in expected.items():
     previous = Path("/content/submit/model") / relative
     target = MODEL / relative
-    if not target.exists() and previous.is_file() and digest(previous) == checksum:
+    if not target.exists() and previous.is_file() and pilot_file_sha256(previous) == checksum:
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
             os.link(previous, target)
         except OSError:
             shutil.copy2(previous, target)
-have_all = all((MODEL / rel).is_file() and digest(MODEL / rel) == checksum for checksum, rel in expected.items())
-""" + '\nif not have_all:\n' + textwrap.indent(model_code, '    ') + '\nfor line in (MODEL / "SHA256SUMS.txt").read_text().splitlines():\n    if line.strip():\n        checksum, relative = line.split()\n        assert digest(MODEL / relative) == checksum, relative\nprint("모델 해시 검사 통과")')
+have_all = all((MODEL / rel).is_file() and pilot_file_sha256(MODEL / rel) == checksum for checksum, rel in expected.items())
+""" + '\nif not have_all:\n' + textwrap.indent(model_code, '    ') + '\nfor line in (MODEL / "SHA256SUMS.txt").read_text().splitlines():\n    if line.strip():\n        checksum, relative = line.split()\n        assert pilot_file_sha256(MODEL / relative) == checksum, relative\nprint("모델 해시 검사 통과")')
 add("markdown", """
 ## 4. 정답·입력 준비
 정답은 공개 데이터의 생성 여부에서 가져왔습니다. MUSAN은 실제 녹음, FakeMusicCaps는 생성 모델 출력입니다.

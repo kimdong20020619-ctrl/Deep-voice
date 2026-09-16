@@ -1,0 +1,155 @@
+{
+  "result_sha256": "fdddd80156fd5aa72f04b414a4bd97f00c63863df6ceefe172f80b8c9c712f5e",
+  "verified_inputs": 80,
+  "verified_features": 240,
+  "maximum_probe_reconstruction_error": 2.220446049250313e-16,
+  "metrics": {
+    "eligible_file_metrics": {
+      "mix_voice_+6dB": {
+        "original": {
+          "baseline": {
+            "file_eer": 0.5,
+            "file_auc": 0.578125,
+            "n": 16
+          },
+          "probe": {
+            "file_eer": 0.375,
+            "file_auc": 0.625,
+            "n": 16
+          }
+        },
+        "music_raw": {
+          "baseline": {
+            "file_eer": 0.375,
+            "file_auc": 0.484375,
+            "n": 16
+          },
+          "probe": {
+            "file_eer": 0.375,
+            "file_auc": 0.65625,
+            "n": 16
+          }
+        },
+        "music_level": {
+          "baseline": {
+            "file_eer": 0.375,
+            "file_auc": 0.484375,
+            "n": 16
+          },
+          "probe": {
+            "file_eer": 0.375,
+            "file_auc": 0.65625,
+            "n": 16
+          }
+        }
+      },
+      "mix_voice_-6dB": {
+        "original": {
+          "baseline": {
+            "file_eer": 0.625,
+            "file_auc": 0.453125,
+            "n": 16
+          },
+          "probe": {
+            "file_eer": 0.5,
+            "file_auc": 0.546875,
+            "n": 16
+          }
+        },
+        "music_raw": {
+          "baseline": {
+            "file_eer": 0.625,
+            "file_auc": 0.328125,
+            "n": 16
+          },
+          "probe": {
+            "file_eer": 0.625,
+            "file_auc": 0.421875,
+            "n": 16
+          }
+        },
+        "music_level": {
+          "baseline": {
+            "file_eer": 0.625,
+            "file_auc": 0.328125,
+            "n": 16
+          },
+          "probe": {
+            "file_eer": 0.625,
+            "file_auc": 0.421875,
+            "n": 16
+          }
+        }
+      },
+      "music": {
+        "original": {
+          "baseline": {
+            "file_eer": 0.625,
+            "file_auc": 0.296875,
+            "n": 16
+          },
+          "probe": {
+            "file_eer": 0.25,
+            "file_auc": 0.84375,
+            "n": 16
+          }
+        },
+        "music_raw": {
+          "baseline": {
+            "file_eer": 0.75,
+            "file_auc": 0.078125,
+            "n": 16
+          },
+          "probe": {
+            "file_eer": 0.625,
+            "file_auc": 0.453125,
+            "n": 16
+          }
+        },
+        "music_level": {
+          "baseline": {
+            "file_eer": 0.75,
+            "file_auc": 0.078125,
+            "n": 16
+          },
+          "probe": {
+            "file_eer": 0.5,
+            "file_auc": 0.453125,
+            "n": 16
+          }
+        }
+      }
+    },
+    "excluded_controls": {
+      "mix_voice_+6dB": {
+        "n": 8,
+        "note": "Descriptive scores only; not FILE/component EER",
+        "mean_music_raw_probe": 0.8823732135845206,
+        "silent_music_count": 0
+      },
+      "mix_voice_-6dB": {
+        "n": 8,
+        "note": "Descriptive scores only; not FILE/component EER",
+        "mean_music_raw_probe": 0.9653242485224578,
+        "silent_music_count": 0
+      },
+      "speech": {
+        "n": 16,
+        "note": "Descriptive scores only; not FILE/component EER",
+        "mean_music_raw_probe": 0.9970771072617689,
+        "silent_music_count": 0
+      }
+    },
+    "note": "Development diagnostic. No Music EER, Voice EER, overall competition Score, or automatic model selection.",
+    "maximum_previous_original_gap": 0.0
+  },
+  "real_speech_control": {
+    "n": 8,
+    "mean_music_raw_probe": 0.9962725365913869,
+    "raw_probe_ge_0_5": 8,
+    "gate_would_separate_count": 0
+  },
+  "total_recorded_seconds": 173.9253769170009,
+  "gpu_features_independently_recomputed": false,
+  "voice_stem_reconstruction_independently_verified": false
+}

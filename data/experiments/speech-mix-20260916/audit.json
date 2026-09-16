@@ -1,0 +1,72 @@
+{
+  "result_sha256": "3c6c07f3de52d68eb995e8ede51aedd02d5ee08bcd499f65564ebb76d7859adf",
+  "verified_inputs": 56,
+  "maximum_reconstructed_mix_error": 1.1920928955078125e-07,
+  "total_pair_inference_seconds": 173.44619095699943,
+  "metrics": {
+    "mix_voice_+6dB": {
+      "baseline": {
+        "file_eer": 0.375,
+        "file_auc": 0.5,
+        "n": 16,
+        "fake_fraction_at_0_5": 0.1875,
+        "mean_fake_probability": 0.2067213230766356
+      },
+      "probe": {
+        "file_eer": 0.5,
+        "file_auc": 0.5,
+        "n": 16,
+        "fake_fraction_at_0_5": 0.0,
+        "mean_fake_probability": 0.00045836601457606625
+      }
+    },
+    "mix_voice_-6dB": {
+      "baseline": {
+        "file_eer": 0.5,
+        "file_auc": 0.4375,
+        "n": 16,
+        "fake_fraction_at_0_5": 0.3125,
+        "mean_fake_probability": 0.42609083047136664
+      },
+      "probe": {
+        "file_eer": 0.25,
+        "file_auc": 0.796875,
+        "n": 16,
+        "fake_fraction_at_0_5": 0.3125,
+        "mean_fake_probability": 0.35492772724927346
+      }
+    },
+    "music_control": {
+      "baseline": {
+        "file_eer": 0.625,
+        "file_auc": 0.296875,
+        "n": 16,
+        "fake_fraction_at_0_5": 0.5625,
+        "mean_fake_probability": 0.5304630389437079
+      },
+      "probe": {
+        "file_eer": 0.25,
+        "file_auc": 0.84375,
+        "n": 16,
+        "fake_fraction_at_0_5": 0.8125,
+        "mean_fake_probability": 0.7295259785899931
+      }
+    },
+    "speech_real": {
+      "baseline": {
+        "n": 8,
+        "file_eer": null,
+        "file_auc": null,
+        "fake_fraction_at_0_5": 0.0,
+        "mean_fake_probability": 0.022604396915994585
+      },
+      "probe": {
+        "n": 8,
+        "file_eer": null,
+        "file_auc": null,
+        "fake_fraction_at_0_5": 0.0,
+        "mean_fake_probability": 1.1276684005050139e-05
+      }
+    }
+  }
+}
