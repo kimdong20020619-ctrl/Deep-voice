@@ -75,10 +75,15 @@ with cached.open("rb") as stream:
         h.update(block)
 assert h.hexdigest()==plan["weight_sha256"]["df_arena"]
 target=WORK/"model/df_arena_1b/pytorch_model.bin"
-try:
-    os.link(cached,target)
-except OSError:
-    shutil.copy2(cached,target)
+target.parent.mkdir(parents=True,exist_ok=True)
+if target.is_symlink():
+    target.unlink()
+shutil.copy2(cached.resolve(strict=True),target)
+h=hashlib.sha256()
+with target.open("rb") as stream:
+    for block in iter(lambda:stream.read(4*1024**2),b""):
+        h.update(block)
+assert h.hexdigest()==plan["weight_sha256"]["df_arena"]
 print("DF-Arena 가중치 해시 검사 통과")
 '''
     nb['cells'][3]['source']=download.splitlines(True)
