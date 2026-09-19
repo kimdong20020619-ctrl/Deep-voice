@@ -1,0 +1,142 @@
+{
+  "result_sha256": "53e6db5540cf29d223a0698dbdfca88338704356ee4f37e21e788c7685d25da0",
+  "verified_inputs": 128,
+  "verified_predictions": 352,
+  "maximum_score_reconstruction_error": 1.1102230246251565e-16,
+  "metrics": {
+    "alpha-120s/original/external": {
+      "mean_prob": {
+        "file_eer": 0.41666666666666663,
+        "file_auc": 0.623263888888889,
+        "n": 48
+      },
+      "max_prob": {
+        "file_eer": 0.41666666666666663,
+        "file_auc": 0.623263888888889,
+        "n": 48
+      },
+      "reference_df_arena": {
+        "file_eer": 0.45833333333333337,
+        "file_auc": 0.6336805555555556,
+        "n": 48
+      }
+    },
+    "alpha-120s/mp3_64k/external": {
+      "mean_prob": {
+        "file_eer": 0.41666666666666663,
+        "file_auc": 0.6267361111111112,
+        "n": 48
+      },
+      "max_prob": {
+        "file_eer": 0.41666666666666663,
+        "file_auc": 0.6267361111111112,
+        "n": 48
+      }
+    },
+    "alpha-5s/original/external": {
+      "mean_prob": {
+        "file_eer": 0.29166666666666663,
+        "file_auc": 0.8055555555555556,
+        "n": 48
+      },
+      "max_prob": {
+        "file_eer": 0.33333333333333337,
+        "file_auc": 0.7517361111111112,
+        "n": 48
+      },
+      "reference_df_arena": {
+        "file_eer": 0.45833333333333337,
+        "file_auc": 0.6336805555555556,
+        "n": 48
+      }
+    },
+    "alpha-5s/original/development_music": {
+      "mean_prob": {
+        "file_eer": 0.5416666666666667,
+        "file_auc": 0.4114583333333333,
+        "n": 48
+      },
+      "max_prob": {
+        "file_eer": 0.5833333333333333,
+        "file_auc": 0.4027777777777778,
+        "n": 48
+      },
+      "reference_df_arena": {
+        "file_eer": 0.5,
+        "file_auc": 0.46875,
+        "n": 48
+      }
+    },
+    "alpha-5s/original/development_controls": {
+      "mean_prob": {
+        "file_eer": 0.625,
+        "file_auc": 0.265625,
+        "n": 32
+      },
+      "max_prob": {
+        "file_eer": 0.625,
+        "file_auc": 0.2916666666666667,
+        "n": 32
+      },
+      "reference_df_arena": {
+        "file_eer": 0.25,
+        "file_auc": 0.8854166666666667,
+        "n": 32
+      }
+    },
+    "alpha-5s/mp3_64k/external": {
+      "mean_prob": {
+        "file_eer": 0.29166666666666663,
+        "file_auc": 0.7604166666666667,
+        "n": 48
+      },
+      "max_prob": {
+        "file_eer": 0.33333333333333337,
+        "file_auc": 0.7456597222222222,
+        "n": 48
+      }
+    },
+    "alpha-5s/mp3_64k/development_music": {
+      "mean_prob": {
+        "file_eer": 0.625,
+        "file_auc": 0.3454861111111111,
+        "n": 48
+      },
+      "max_prob": {
+        "file_eer": 0.6666666666666667,
+        "file_auc": 0.3472222222222222,
+        "n": 48
+      }
+    },
+    "alpha-5s/mp3_64k/development_controls": {
+      "mean_prob": {
+        "file_eer": 0.375,
+        "file_auc": 0.6875,
+        "n": 32
+      },
+      "max_prob": {
+        "file_eer": 0.375,
+        "file_auc": 0.671875,
+        "n": 32
+      }
+    }
+  },
+  "runtime": {
+    "torch": "2.11.0+cu128",
+    "timm": "1.0.15",
+    "librosa": "0.11.0",
+    "gpu": "Tesla T4",
+    "fit": false,
+    "primary": "alpha-5s mean probability",
+    "notes": "120s is right-zero-padded diagnostic only; controls are task-mismatch diagnostics, not Music EER."
+  },
+  "seconds_by_model": {
+    "alpha-5s": 12.154864169999883,
+    "alpha-120s": 3.3166642650005542
+  },
+  "model_weight_bytes_returned": false,
+  "weight_check_basis": "Matching worker asserts expected SHA before and after inference; completion log and summary present.",
+  "gpu_logits_independently_recomputed": false,
+  "mp3_audio_independently_recomputed": false,
+  "decision": "Primary candidate fails prespecified cross-corpus improvement gate; retain as research candidate, do not replace submission."
+}
