@@ -1,0 +1,335 @@
+{
+  "family_metrics": {
+    "development_controls/mix_voice_+6dB": {
+      "mean_prob": {
+        "n": 8,
+        "file_eer": null,
+        "file_auc": null,
+        "reason": "Only one class; EER/AUC undefined"
+      },
+      "reference_baseline": {
+        "n": 8,
+        "file_eer": null,
+        "file_auc": null,
+        "reason": "Only one class; EER/AUC undefined"
+      },
+      "mp3": {
+        "n": 8,
+        "file_eer": null,
+        "file_auc": null,
+        "reason": "Only one class; EER/AUC undefined"
+      },
+      "by_class": {
+        "1": {
+          "n": 8,
+          "mean_score": 0.06274998235509752,
+          "mean_mp3_change": 0.20129969424593053
+        }
+      }
+    },
+    "development_controls/mix_voice_-6dB": {
+      "mean_prob": {
+        "n": 8,
+        "file_eer": null,
+        "file_auc": null,
+        "reason": "Only one class; EER/AUC undefined"
+      },
+      "reference_baseline": {
+        "n": 8,
+        "file_eer": null,
+        "file_auc": null,
+        "reason": "Only one class; EER/AUC undefined"
+      },
+      "mp3": {
+        "n": 8,
+        "file_eer": null,
+        "file_auc": null,
+        "reason": "Only one class; EER/AUC undefined"
+      },
+      "by_class": {
+        "1": {
+          "n": 8,
+          "mean_score": 0.02677774908762256,
+          "mean_mp3_change": 0.06088531955462402
+        }
+      }
+    },
+    "development_controls/speech": {
+      "mean_prob": {
+        "file_eer": 0.375,
+        "file_auc": 0.65625,
+        "n": 16
+      },
+      "reference_baseline": {
+        "file_eer": 0.125,
+        "file_auc": 0.96875,
+        "n": 16
+      },
+      "mp3": {
+        "file_eer": 0.375,
+        "file_auc": 0.609375,
+        "n": 16
+      },
+      "by_class": {
+        "0": {
+          "n": 8,
+          "mean_score": 0.13211245333178623,
+          "mean_mp3_change": -0.02996462431023206
+        },
+        "1": {
+          "n": 8,
+          "mean_score": 0.16776693965865344,
+          "mean_mp3_change": -0.022704302494429413
+        }
+      }
+    },
+    "development_music/mix_voice_+6dB": {
+      "mean_prob": {
+        "file_eer": 0.5,
+        "file_auc": 0.40625,
+        "n": 16
+      },
+      "reference_baseline": {
+        "file_eer": 0.5,
+        "file_auc": 0.578125,
+        "n": 16
+      },
+      "mp3": {
+        "file_eer": 0.5,
+        "file_auc": 0.390625,
+        "n": 16
+      },
+      "by_class": {
+        "0": {
+          "n": 8,
+          "mean_score": 0.12649539748121114,
+          "mean_mp3_change": 0.14731111123580323
+        },
+        "1": {
+          "n": 8,
+          "mean_score": 0.159981317427974,
+          "mean_mp3_change": 0.0765030700919592
+        }
+      }
+    },
+    "development_music/mix_voice_-6dB": {
+      "mean_prob": {
+        "file_eer": 0.5,
+        "file_auc": 0.4375,
+        "n": 16
+      },
+      "reference_baseline": {
+        "file_eer": 0.625,
+        "file_auc": 0.453125,
+        "n": 16
+      },
+      "mp3": {
+        "file_eer": 0.5,
+        "file_auc": 0.40625,
+        "n": 16
+      },
+      "by_class": {
+        "0": {
+          "n": 8,
+          "mean_score": 0.10142589860772026,
+          "mean_mp3_change": 0.026309496945304062
+        },
+        "1": {
+          "n": 8,
+          "mean_score": 0.18927837829284777,
+          "mean_mp3_change": -0.012023805627709338
+        }
+      }
+    },
+    "development_music/music": {
+      "mean_prob": {
+        "file_eer": 0.625,
+        "file_auc": 0.34375,
+        "n": 16
+      },
+      "reference_baseline": {
+        "file_eer": 0.625,
+        "file_auc": 0.296875,
+        "n": 16
+      },
+      "mp3": {
+        "file_eer": 0.75,
+        "file_auc": 0.25,
+        "n": 16
+      },
+      "by_class": {
+        "0": {
+          "n": 8,
+          "mean_score": 0.2812782777625978,
+          "mean_mp3_change": -0.02989095316969447
+        },
+        "1": {
+          "n": 8,
+          "mean_score": 0.19486592992682752,
+          "mean_mp3_change": -0.041068228636389315
+        }
+      }
+    },
+    "external/broadcast": {
+      "mean_prob": {
+        "file_eer": 0.29166666666666663,
+        "file_auc": 0.8055555555555556,
+        "n": 48
+      },
+      "reference_baseline": {
+        "file_eer": 0.45833333333333337,
+        "file_auc": 0.6336805555555556,
+        "n": 48
+      },
+      "mp3": {
+        "file_eer": 0.29166666666666663,
+        "file_auc": 0.7604166666666667,
+        "n": 48
+      },
+      "by_class": {
+        "0": {
+          "n": 24,
+          "mean_score": 0.20830688167856273,
+          "mean_mp3_change": 0.00200422571957184
+        },
+        "1": {
+          "n": 24,
+          "mean_score": 0.3982406969397747,
+          "mean_mp3_change": -0.03559429388924895
+        }
+      }
+    }
+  },
+  "pure_music_source_scores": {
+    "Hi_Rez": {
+      "n": 2,
+      "mean_score": 0.5866941193894992
+    },
+    "Quiet_Music_for_Tiny_Robots": {
+      "n": 2,
+      "mean_score": 0.10401416032175814
+    },
+    "Rolemusic": {
+      "n": 2,
+      "mean_score": 0.07038937489239948
+    },
+    "The_Copycuts": {
+      "n": 2,
+      "mean_score": 0.36401545644673433
+    },
+    "audioldm2": {
+      "n": 8,
+      "mean_score": 0.19486592992682752
+    }
+  },
+  "external_pair_ranking": {
+    "mean_prob": {
+      "wins": 19,
+      "ties": 0,
+      "n": 24
+    },
+    "reference_baseline": {
+      "wins": 16,
+      "ties": 0,
+      "n": 24
+    }
+  },
+  "external_temporal_diagnostics": {
+    "first_5s": {
+      "file_eer": 0.33333333333333337,
+      "file_auc": 0.693576388888889,
+      "n": 48
+    },
+    "first_10s_mean": {
+      "file_eer": 0.375,
+      "file_auc": 0.6953125,
+      "n": 48
+    },
+    "full_60s_mean": {
+      "file_eer": 0.29166666666666663,
+      "file_auc": 0.8055555555555556,
+      "n": 48
+    },
+    "per_5s_position": [
+      {
+        "file_eer": 0.33333333333333337,
+        "file_auc": 0.693576388888889,
+        "n": 48
+      },
+      {
+        "file_eer": 0.375,
+        "file_auc": 0.6710069444444443,
+        "n": 48
+      },
+      {
+        "file_eer": 0.375,
+        "file_auc": 0.6432291666666666,
+        "n": 48
+      },
+      {
+        "file_eer": 0.41666666666666663,
+        "file_auc": 0.6006944444444444,
+        "n": 48
+      },
+      {
+        "file_eer": 0.33333333333333337,
+        "file_auc": 0.6918402777777777,
+        "n": 48
+      },
+      {
+        "file_eer": 0.33333333333333337,
+        "file_auc": 0.6927083333333333,
+        "n": 48
+      },
+      {
+        "file_eer": 0.41666666666666663,
+        "file_auc": 0.6180555555555556,
+        "n": 48
+      },
+      {
+        "file_eer": 0.41666666666666663,
+        "file_auc": 0.6388888888888888,
+        "n": 48
+      },
+      {
+        "file_eer": 0.29166666666666663,
+        "file_auc": 0.7369791666666666,
+        "n": 48
+      },
+      {
+        "file_eer": 0.29166666666666663,
+        "file_auc": 0.7213541666666666,
+        "n": 48
+      },
+      {
+        "file_eer": 0.33333333333333337,
+        "file_auc": 0.7213541666666666,
+        "n": 48
+      },
+      {
+        "file_eer": 0.375,
+        "file_auc": 0.6927083333333333,
+        "n": 48
+      }
+    ]
+  },
+  "external_paired_bootstrap": {
+    "replicates": 1000,
+    "seed": 20260919,
+    "eer_difference_95_percentile": [
+      -0.3333333333333333,
+      0.0
+    ],
+    "auc_difference_95_percentile": [
+      0.010329861111111081,
+      0.32118055555555547
+    ],
+    "note": "Exploratory percentile intervals on previously inspected 24 pairs, not a confirmatory significance test."
+  },
+  "data_sources": [
+    "audioldm2"
+  ],
+  "fit": false,
+  "threshold_selection": false,
+  "submission_changed": false
+}
