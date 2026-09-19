@@ -1,0 +1,167 @@
+[
+  {
+    "url": "https://api.github.com/repos/awsaf49/sonics/git/trees/9156ffad151f797c71556923c4a02fa01fa8fc91?recursive=1",
+    "path": "tree.json",
+    "sha256": "510c709157447670b18967813a577a6eb520fe159515b23fed7eb4828bd3fdf7"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/LICENSE",
+    "path": "upstream/LICENSE",
+    "sha256": "49c5a1b163d7e372b3e97a6ce2a1e3d80bc038f8dd54d516b1c0b1f1423529f9"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/README.md",
+    "path": "upstream/README.md",
+    "sha256": "fcdda26c838238340c4b47c74730fdfe29b806974b7e2f881960606891648b10"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/requirements.txt",
+    "path": "upstream/requirements.txt",
+    "sha256": "c7a6834dc71e15e6f32bb34ddbae15794cbbd67ad005b1cab26d8c4129ae2020"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/setup.py",
+    "path": "upstream/setup.py",
+    "sha256": "c4819f22b0cab06439f85ab19dca45d88bcef62a80f888fd4548dd5111fe83a4"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/__init__.py",
+    "path": "upstream/sonics/__init__.py",
+    "sha256": "a0db24a108e3b0b98689a7383ac5ef350ff027589dd7563552732a614db6fba9"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/layers/__init__.py",
+    "path": "upstream/sonics/layers/__init__.py",
+    "sha256": "5f30a0f798359b5ecc02c8f7e1160ffee8914352e4cd8a400eabd5605457057a"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/layers/augment.py",
+    "path": "upstream/sonics/layers/augment.py",
+    "sha256": "cf70955afc197ac150a405578b6b95b55edab1fc8be3905966f54e2443856eb6"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/layers/embedding.py",
+    "path": "upstream/sonics/layers/embedding.py",
+    "sha256": "c6467dfc1251e7c4b406eaf803841dfc5febeab75e1fee86381a6f4162be5189"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/layers/feature.py",
+    "path": "upstream/sonics/layers/feature.py",
+    "sha256": "2c32f2097eea2c2c4c2e1ebf592596547aae52618c310731f29409703bded031"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/layers/tokenizer.py",
+    "path": "upstream/sonics/layers/tokenizer.py",
+    "sha256": "3b823db9a35422093d75abd9744f9b74af70393c6e534f58e4f898b004484f2d"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/layers/transformer.py",
+    "path": "upstream/sonics/layers/transformer.py",
+    "sha256": "08776fa5a8a09b8b4ab64ba3abaedb303eb333265c74338b42e59b0d25a1eacf"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/models/__init__.py",
+    "path": "upstream/sonics/models/__init__.py",
+    "sha256": "adfe8628032b1a6fce14cc8e716d03c9078a00c5045d9076640be9d2cafcaf11"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/models/hf_model.py",
+    "path": "upstream/sonics/models/hf_model.py",
+    "sha256": "2cb44a0f74ecf518e503477006ab41aba98e3fbbac6115a91276a110dfc13371"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/models/model.py",
+    "path": "upstream/sonics/models/model.py",
+    "sha256": "68affbe0bbe45e5bffb474715e61b7807de9b57eef4f40771d616dee7004e31b"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/models/spectttra.py",
+    "path": "upstream/sonics/models/spectttra.py",
+    "sha256": "a8974a07d64c0ed7fe14fb2ba9080bc4297315c26be563176dcb2765c5367a19"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/models/vit.py",
+    "path": "upstream/sonics/models/vit.py",
+    "sha256": "1d9858e4ca774626fdb63d509507c3ff41adfdcd645b1ce46bd8c7ea475066f2"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/utils/__init__.py",
+    "path": "upstream/sonics/utils/__init__.py",
+    "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/utils/config.py",
+    "path": "upstream/sonics/utils/config.py",
+    "sha256": "05eec1d363ac0ed83f588856beca87aeac2517af79c431892f3df31b5ee48eb5"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/utils/dataset.py",
+    "path": "upstream/sonics/utils/dataset.py",
+    "sha256": "a1a730d886adaeb7494fdfd073cf8ec8c4a3af61f24d32ef87b4859aa642a68c"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/utils/losses.py",
+    "path": "upstream/sonics/utils/losses.py",
+    "sha256": "ae5c64d0f9bebc91e173006576792e82865917e7f97c277f73fd30a027dbfbf7"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/utils/metrics.py",
+    "path": "upstream/sonics/utils/metrics.py",
+    "sha256": "fcfcc841486dc41d443299989a850ecad88a5010550a10c8d2b96d75e28b776f"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/utils/perf.py",
+    "path": "upstream/sonics/utils/perf.py",
+    "sha256": "eee5cf32f7e6812ea7497a01a090f42ab7d5978f9d8c6c7ac29062904c1b5e71"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/utils/scheduler.py",
+    "path": "upstream/sonics/utils/scheduler.py",
+    "sha256": "be4eb554fd973a2c1cd6dde25b9ecc962d0ec04d7d24fd515b3d35ee747205f9"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/sonics/utils/seed.py",
+    "path": "upstream/sonics/utils/seed.py",
+    "sha256": "fc8a62b22ee109b8d309f7056eadcf69d1ee282f4196560f7ab2fb7a856ab5bd"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/test.py",
+    "path": "upstream/test.py",
+    "sha256": "d30903463530cbe623c23ea9f5196194962d52ce9e1f98330e4d45b062a495cd"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/awsaf49/sonics/9156ffad151f797c71556923c4a02fa01fa8fc91/train.py",
+    "path": "upstream/train.py",
+    "sha256": "ceaef5a5b4599f9e761a7dd0cc60aeb726fe1eacd00a3fce3cc3b4dd1e132fa7"
+  },
+  {
+    "url": "https://huggingface.co/api/models/awsaf49/sonics-spectttra-alpha-5s?blobs=true",
+    "path": "alpha-5s/metadata.json",
+    "sha256": "079f6b3485bf579aba3e8400a7f544f6f83dfde8bc73e5b83c7731aa7e2c0452"
+  },
+  {
+    "url": "https://huggingface.co/awsaf49/sonics-spectttra-alpha-5s/resolve/d30e3553a5ab08a171bdffdbbd2d792ac7970d65/config.json",
+    "path": "alpha-5s/config.json",
+    "sha256": "92d133b34b6de96988fb6f516883b7f08adb0456a4d0676598fb1b996d25e828"
+  },
+  {
+    "url": "https://huggingface.co/awsaf49/sonics-spectttra-alpha-5s/resolve/d30e3553a5ab08a171bdffdbbd2d792ac7970d65/README.md",
+    "path": "alpha-5s/README.md",
+    "sha256": "ba1f22458e807b49e8395710f1f95437e2b3190f613145f4f9941a190eb08a62"
+  },
+  {
+    "url": "https://huggingface.co/api/models/awsaf49/sonics-spectttra-alpha-120s?blobs=true",
+    "path": "alpha-120s/metadata.json",
+    "sha256": "6a4c512cc8c82c848f6155a0d3f1593a24561687f4e4311b9388417eca54ff69"
+  },
+  {
+    "url": "https://huggingface.co/awsaf49/sonics-spectttra-alpha-120s/resolve/094b32a5545098a71c113f6ae9d5c55310564268/config.json",
+    "path": "alpha-120s/config.json",
+    "sha256": "3d89514e687194691661af57a9df0077f60d46a92480ad91840375e8ba2315b9"
+  },
+  {
+    "url": "https://huggingface.co/awsaf49/sonics-spectttra-alpha-120s/resolve/094b32a5545098a71c113f6ae9d5c55310564268/README.md",
+    "path": "alpha-120s/README.md",
+    "sha256": "a1da989e140b97ea7c4be1c3d5e84f61a38b248f76a4280a7647fe4812d0db4d"
+  }
+]
