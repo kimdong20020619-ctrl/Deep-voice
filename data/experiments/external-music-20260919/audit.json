@@ -1,0 +1,82 @@
+{
+  "result_sha256": "9e69c52ce8f15f94c6a25ea3ab6ab3f70823e924868404e8a30aad5e80d3c9a0",
+  "verified_inputs": 48,
+  "maximum_probe_reconstruction_error": 5.551115123125783e-17,
+  "metrics": {
+    "baseline": {
+      "file_eer": 0.45833333333333337,
+      "file_auc": 0.6336805555555556,
+      "n": 48,
+      "paired_fake_ranked_higher": 16,
+      "paired_ties": 0,
+      "pair_count": 24
+    },
+    "music_probe": {
+      "file_eer": 0.41666666666666663,
+      "file_auc": 0.6050347222222222,
+      "n": 48,
+      "paired_fake_ranked_higher": 14,
+      "paired_ties": 3,
+      "pair_count": 24
+    },
+    "mixed_probe": {
+      "file_eer": 0.5,
+      "file_auc": 0.5815972222222223,
+      "n": 48,
+      "paired_fake_ranked_higher": 11,
+      "paired_ties": 2,
+      "pair_count": 24
+    }
+  },
+  "total_recorded_seconds": 177.2395276589998,
+  "segment_counts": [
+    15
+  ],
+  "runtime": {
+    "torch": "2.11.0+cu128",
+    "device": "Tesla T4",
+    "config": {
+      "fusion_mode": "baseline",
+      "fusion_gate": 0.5,
+      "fusion_gamma": 0.5,
+      "file_head": "direct",
+      "segment_agg": "max",
+      "segment_topk": 2,
+      "segment_topk_ratio": 0.0,
+      "segment_agg_voice": null,
+      "segment_agg_music": null,
+      "music_head": "none",
+      "music_constant": 0.5,
+      "music_source": "stem",
+      "pipeline": "separate",
+      "backend_ft": "auto",
+      "voice_head": "none",
+      "voice_constant": 0.5,
+      "file_probe": "none",
+      "file_probe_blend": 1.0,
+      "music_head_blend": 1.0,
+      "short_pad": "tile",
+      "demucs_gating": true,
+      "gate_voice": 0.2,
+      "gate_music": 0.1,
+      "silence_rms": 1e-05,
+      "max_segments": 0,
+      "use_bf16": true,
+      "batch_size": 8,
+      "batch_patch": true,
+      "demucs_on_gpu": true
+    },
+    "fit": false,
+    "model_sha256": {
+      "music_probe": "08bfc83eab9f4dd23a4f3c9c884f0f1c9e25230634ff4245da8d3a289539601f",
+      "mixed_probe": "8b6b6d617d7f096342a1bc75fc8587390ceb7ccafb86ffe129a89243b6912f1b"
+    }
+  },
+  "saturation_ge_0999": {
+    "music_probe": 3,
+    "mixed_probe": 4
+  },
+  "gpu_embeddings_independently_recomputed": false,
+  "baseline_logits_independently_recomputed": false,
+  "decision": "Do not replace the submission model with either probe based on this external check."
+}
