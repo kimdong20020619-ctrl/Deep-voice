@@ -1,0 +1,262 @@
+{
+  "rows": [
+    {
+      "ID": "music-hd-0039",
+      "clip_path": "data/raw/component-music-20260920/clips/music-hd-0039.wav",
+      "clip_sha256": "6cfc843da67b17f17b7d5976bb6f6f16df756dfef87994559155167a2aa892aa",
+      "file_fake": 0,
+      "voice_presence": 0,
+      "music_presence": 1,
+      "voice_fake": null,
+      "music_fake": 0,
+      "source_group": "musan/music/hd-classical/music-hd-0039.wav",
+      "review_source": "data/raw/component-music-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "music-hd-0002",
+      "clip_path": "data/raw/component-music-20260920/clips/music-hd-0002.wav",
+      "clip_sha256": "2fc3193a953ea4276acd651ef8f84e655b5d411eef28a7a151e84986313beabb",
+      "file_fake": 0,
+      "voice_presence": 0,
+      "music_presence": 1,
+      "voice_fake": null,
+      "music_fake": 0,
+      "source_group": "musan/music/hd-classical/music-hd-0002.wav",
+      "review_source": "data/raw/component-music-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "music-jamendo-0051",
+      "clip_path": "data/raw/component-music-20260920/clips/music-jamendo-0051.wav",
+      "clip_sha256": "d0177da56dad08022d4127ad0cac8852018a31da910c1132f3eeb1697b64bd30",
+      "file_fake": 0,
+      "voice_presence": 0,
+      "music_presence": 1,
+      "voice_fake": null,
+      "music_fake": 0,
+      "source_group": "musan/music/jamendo/music-jamendo-0051.wav",
+      "review_source": "data/raw/component-music-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "music-jamendo-0083",
+      "clip_path": "data/raw/component-music-20260920/clips/music-jamendo-0083.wav",
+      "clip_sha256": "fb5a69b209959f766a9286dcb2b6543712ba0d2dd2929cae3a5a2db4fd679b8f",
+      "file_fake": 0,
+      "voice_presence": 0,
+      "music_presence": 1,
+      "voice_fake": null,
+      "music_fake": 0,
+      "source_group": "musan/music/jamendo/music-jamendo-0083.wav",
+      "review_source": "data/raw/component-music-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "music-jamendo-0155",
+      "clip_path": "data/raw/component-music-20260920/clips/music-jamendo-0155.wav",
+      "clip_sha256": "231a7625c29bc633b87f23b343bbb0e185865abd24d8bec143f9e5a63e173a40",
+      "file_fake": 0,
+      "voice_presence": 0,
+      "music_presence": 1,
+      "voice_fake": null,
+      "music_fake": 0,
+      "source_group": "musan/music/jamendo/music-jamendo-0155.wav",
+      "review_source": "data/raw/component-music-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "music-jamendo-0174",
+      "clip_path": "data/raw/component-music-20260920/clips/music-jamendo-0174.wav",
+      "clip_sha256": "9fdcde170437ab659ae15d1c04aaea986f9757a99ba9aafbfc5a0dff7713651e",
+      "file_fake": 0,
+      "voice_presence": 0,
+      "music_presence": 1,
+      "voice_fake": null,
+      "music_fake": 0,
+      "source_group": "musan/music/jamendo/music-jamendo-0174.wav",
+      "review_source": "data/raw/component-music-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "music-jamendo-0192",
+      "clip_path": "data/raw/component-music-20260920/clips/music-jamendo-0192.wav",
+      "clip_sha256": "e1536c8c9e5b42d2d12a80046a2f42fb8670881f3ecb17f1382ab75a5b15ae41",
+      "file_fake": 0,
+      "voice_presence": 0,
+      "music_presence": 1,
+      "voice_fake": null,
+      "music_fake": 0,
+      "source_group": "musan/music/jamendo/music-jamendo-0192.wav",
+      "review_source": "data/raw/component-music-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "music-jamendo-0005",
+      "clip_path": "data/raw/component-music-20260920/clips/music-jamendo-0005.wav",
+      "clip_sha256": "208982be7db95476aecc903ea843c57eb5d3b9c9af8fd6541e29b6652ca0c22d",
+      "file_fake": 0,
+      "voice_presence": 0,
+      "music_presence": 1,
+      "voice_fake": null,
+      "music_fake": 0,
+      "source_group": "musan/music/jamendo/music-jamendo-0005.wav",
+      "review_source": "data/raw/component-music-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "music-jamendo-0044",
+      "clip_path": "data/raw/component-music-20260920/clips/music-jamendo-0044.wav",
+      "clip_sha256": "18275ed4f3905e338960af04b271d43cbab071a0346de889d392f79e486e7020",
+      "file_fake": 0,
+      "voice_presence": 0,
+      "music_presence": 1,
+      "voice_fake": null,
+      "music_fake": 0,
+      "source_group": "musan/music/jamendo/music-jamendo-0044.wav",
+      "review_source": "data/raw/component-music-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "C01",
+      "clip_path": "data/raw/component-remainder-20260920/clips/C01.wav",
+      "clip_sha256": "c73cbe6f251ed1e163c4b8287c83a3f82b4a191e75336db7602ad5dd0a75f7c9",
+      "file_fake": 1,
+      "voice_presence": 0,
+      "music_presence": 1,
+      "voice_fake": null,
+      "music_fake": 1,
+      "source_group": "FE2kALvHjEU",
+      "review_source": "data/raw/component-remainder-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "C02",
+      "clip_path": "data/raw/component-remainder-20260920/clips/C02.wav",
+      "clip_sha256": "c864d3dfd84e3be4d486cc60dd343f96068475bc46a95d996d230d6289674c22",
+      "file_fake": 1,
+      "voice_presence": 0,
+      "music_presence": 1,
+      "voice_fake": null,
+      "music_fake": 1,
+      "source_group": "XW6tS4zAZ5E",
+      "review_source": "data/raw/component-remainder-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "C03",
+      "clip_path": "data/raw/component-remainder-20260920/clips/C03.wav",
+      "clip_sha256": "addfc15661ab057d12f4ac5080bd3cc176f408946faccd7c2428a70061bb497b",
+      "file_fake": 1,
+      "voice_presence": 0,
+      "music_presence": 1,
+      "voice_fake": null,
+      "music_fake": 1,
+      "source_group": "D_QEW1Lnl2Q",
+      "review_source": "data/raw/component-remainder-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "C04",
+      "clip_path": "data/raw/component-remainder-20260920/clips/C04.wav",
+      "clip_sha256": "8581ff191f8b7c655fd8bde6afbff7b28a10a8f739a1c2912eb3e284de5e3da2",
+      "file_fake": 1,
+      "voice_presence": 0,
+      "music_presence": 1,
+      "voice_fake": null,
+      "music_fake": 1,
+      "source_group": "yw6uqQQF5Ig",
+      "review_source": "data/raw/component-remainder-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "C05",
+      "clip_path": "data/raw/component-remainder-20260920/clips/C05.wav",
+      "clip_sha256": "380fc92ffe2640c1f1ec8876ab50b3814aa53679abc21605605a1ae9bf2aea1c",
+      "file_fake": 1,
+      "voice_presence": 1,
+      "music_presence": 0,
+      "voice_fake": 1,
+      "music_fake": null,
+      "source_group": "e_W17jp40G4",
+      "review_source": "data/raw/component-remainder-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "C06",
+      "clip_path": "data/raw/component-remainder-20260920/clips/C06.wav",
+      "clip_sha256": "3dd9be131e25893dcf7b69d84ce77f1efcd4f90a1da2946a58c62a23b45aa494",
+      "file_fake": 0,
+      "voice_presence": 1,
+      "music_presence": 0,
+      "voice_fake": 0,
+      "music_fake": null,
+      "source_group": "LJ003-0199",
+      "review_source": "data/raw/component-remainder-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "C07",
+      "clip_path": "data/raw/component-remainder-20260920/clips/C07.wav",
+      "clip_sha256": "7ccbfac96436454fcd111d15979356c657397ccb93acc2d1a6bd1ac13642b5f9",
+      "file_fake": 1,
+      "voice_presence": 1,
+      "music_presence": 0,
+      "voice_fake": 1,
+      "music_fake": null,
+      "source_group": "LJ003-0199",
+      "review_source": "data/raw/component-remainder-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "C08",
+      "clip_path": "data/raw/component-remainder-20260920/clips/C08.wav",
+      "clip_sha256": "065068b949a1dea0db4460ad0ae69235604478b79c8582e00e72aba827e2dbaf",
+      "file_fake": 1,
+      "voice_presence": 1,
+      "music_presence": 0,
+      "voice_fake": 1,
+      "music_fake": null,
+      "source_group": "LJ003-0199",
+      "review_source": "data/raw/component-remainder-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "C09",
+      "clip_path": "data/raw/component-remainder-20260920/clips/C09.wav",
+      "clip_sha256": "c036c3c90bdab48b5f51ef42698bebd4b3ee02242066eab10935d0d0c066c540",
+      "file_fake": 0,
+      "voice_presence": 1,
+      "music_presence": 0,
+      "voice_fake": 0,
+      "music_fake": null,
+      "source_group": "LJ004-0118",
+      "review_source": "data/raw/component-remainder-20260920/reviewed_manifest.json"
+    },
+    {
+      "ID": "C10",
+      "clip_path": "data/raw/component-remainder-20260920/clips/C10.wav",
+      "clip_sha256": "4dbe59d7e8ff0b57e71f8b7455652565547d8f4a13fb27e61a64d0b0c23a7ab1",
+      "file_fake": 1,
+      "voice_presence": 1,
+      "music_presence": 0,
+      "voice_fake": 1,
+      "music_fake": null,
+      "source_group": "LJ004-0118",
+      "review_source": "data/raw/component-remainder-20260920/reviewed_manifest.json"
+    }
+  ],
+  "label_counts": {
+    "file_fake": {
+      "0": 11,
+      "1": 8
+    },
+    "voice_presence": {
+      "0": 13,
+      "1": 6
+    },
+    "music_presence": {
+      "1": 13,
+      "0": 6
+    },
+    "voice_fake": {
+      "1": 4,
+      "0": 2
+    },
+    "music_fake": {
+      "0": 9,
+      "1": 4
+    }
+  },
+  "purpose": "Frozen baseline pipeline diagnostic only; no model selection or performance gain claims.",
+  "limitations": [
+    "Small sample and reused sources.",
+    "One reference speech speaker and two paired utterance groups.",
+    "Component labels depend on one listener.",
+    "No GPU inference or official competition Score obtained."
+  ],
+  "c05_note": "Voice-only according to user; include in voice mask, exclude from music mask."
+}
