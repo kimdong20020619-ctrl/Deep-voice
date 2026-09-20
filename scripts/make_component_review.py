@@ -39,7 +39,8 @@ def main():
 
 licenses 폴더는 원본 주석과 곡별 사용 조건입니다. 재배포 시 함께 보존하세요.
 manifest.json에는 아티스트, 라이선스, 출처, 자른 위치, SHA-256을 기록했습니다.
-공개 미러의 고정 리비전에서 수집했으며 공식 전체 압축본과의 일치는 미검증입니다.
+공개 미러의 고정 리비전에서 제공하는 WAV 내보내기 파일입니다.
+공식 전체 압축본 원본과 바이트가 일치하는지는 미검증입니다.
 '''
     target = Path.home() / 'Downloads/component_music_review.zip'
     with zipfile.ZipFile(target, 'w', compression=zipfile.ZIP_DEFLATED) as archive:

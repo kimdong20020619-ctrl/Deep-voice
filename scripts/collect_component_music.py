@@ -1,4 +1,4 @@
-"""Collect frozen MUSAN candidates from the official archive, without model inference."""
+"""Collect frozen MUSAN candidates with explicit mirror and representation provenance."""
 import hashlib
 import io
 import json
@@ -7,6 +7,7 @@ import tarfile
 import time
 import urllib.request
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -60,6 +61,46 @@ def sha(blob):
     return hashlib.sha256(blob).hexdigest()
 
 
+def collect_individual(missing, save):
+    """Read viewer-exported WAVs, explicitly preserving the mirror provenance."""
+    def page(offset):
+        query = urllib.parse.urlencode(dict(dataset='shadwl/musan', config='default',
+            split='train', length=100, offset=offset))
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen('https://datasets-server.huggingface.co/rows?'+query, timeout=30) as response:
+                    return json.load(response)
+            except OSError:
+                if attempt == 2:
+                    raise
+    total = 0
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        for start in range(0, 2400, 400):
+            for result in pool.map(page, range(start, start+400, 100)):
+                for item in result['rows']:
+                    source = item['row']['path']
+                    if source not in missing:
+                        continue
+                    url = item['row']['audio'][0]['src']
+                    revision = url.split('/--/')[1]
+                    assert revision == '4659edba2da70ebb8b9eccf6c997e7199a685119'
+                    row = dict(missing[source], download_representation='dataset_viewer_exported_wav',
+                        download_url=url.split('?')[0], mirror_revision=revision,
+                        mirror_repository='shadwl/musan')
+                    with urllib.request.urlopen(url, timeout=30) as response:
+                        blob = response.read(64*1024**2 + 1)
+                    assert 0 < len(blob) <= 64*1024**2
+                    total += len(blob)
+                    save(row, blob)
+                    missing.pop(source)
+            print('inspected rows', start+400, 'remaining', len(missing), flush=True)
+            if not missing:
+                return total
+            if start+400 >= result['num_rows_total']:
+                break
+    raise ValueError(f'Missing individual sources: {list(missing)}')
+
+
 def main():
     audit_path = ROOT / 'data/research/component-labels-20260920/audit.json'
     audit = json.loads(audit_path.read_text(encoding='utf-8'))
@@ -99,7 +140,7 @@ def main():
             clip_sha256=sha(target.read_bytes()), crop_start_seconds=start,
             original_seconds=len(audio)/sr, clip_seconds=len(pcm)/sr,
             clip_rms=float(np.sqrt(np.mean((pcm.astype(np.float64)/32768)**2))),
-            archive_url=DOWNLOAD_URL, original_distribution_url='https://www.openslr.org/17/',
+            original_distribution_url='https://www.openslr.org/17/',
             mirror_bytes_match_official_archive_verified=False, full_archive_checksum_verified=False,
             file_fake=0, voice_presence=None, music_presence=None,
             voice_fake=None, music_fake=None, component_labels_reviewed=False)
@@ -113,12 +154,16 @@ def main():
         receipt = OUT / 'receipts' / (row['track_id'] + '.json')
         if original.exists() and receipt.exists():
             blob = original.read_bytes()
-            assert sha(blob) == json.loads(receipt.read_text())['source_sha256']
-            save(row, blob)
+            previous = json.loads(receipt.read_text())
+            assert sha(blob) == previous['source_sha256']
+            save(dict(row, **{k: previous[k] for k in ('download_representation', 'download_url',
+                       'mirror_revision', 'mirror_repository') if k in previous}), blob)
         else:
             missing[row['source']] = row
     transferred = 0
-    if missing:
+    if missing and '--archive' not in __import__('sys').argv:
+        transferred = collect_individual(missing, save)
+    elif missing:
         budget = 5 * 1024**3
         reader = ResumableReader()
         bounded = LimitedReader(reader, budget)
@@ -133,7 +178,8 @@ def main():
                 assert entry.isfile() and 0 < entry.size < 64*1024**2
                 blob = archive.extractfile(entry).read()
                 assert len(blob) == entry.size
-                save(missing.pop(entry.name), blob)
+                save(dict(missing.pop(entry.name), archive_url=DOWNLOAD_URL,
+                          download_representation='archive_member'), blob)
                 if not missing:
                     break
         transferred = budget - bounded.remaining
@@ -149,9 +195,8 @@ def main():
 if __name__ == '__main__':
     import sys
     if '--inspect-viewer' in sys.argv:
-        query = urllib.parse.urlencode(dict(dataset='shadwl/musan', config='default', split='train',
-            where='"path"=\'musan/music/hd-classical/music-hd-0002.wav\'', length=1))
-        with urllib.request.urlopen('https://datasets-server.huggingface.co/filter?'+query, timeout=30) as response:
+        query = urllib.parse.urlencode(dict(dataset='shadwl/musan', config='default', split='train', length=100, offset=0))
+        with urllib.request.urlopen('https://datasets-server.huggingface.co/rows?'+query, timeout=30) as response:
             info = json.load(response)
         (OUT / 'viewer_probe.json').write_text(json.dumps(info, indent=2), encoding='utf-8')
         print('viewer rows', len(info.get('rows', [])))
