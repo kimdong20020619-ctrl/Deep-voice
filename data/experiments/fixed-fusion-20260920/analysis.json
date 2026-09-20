@@ -1,0 +1,730 @@
+{
+  "rule": "0.5 * SONICS probability + 0.5 * DF-Arena probability",
+  "fit": false,
+  "weight_search": false,
+  "generator_comparison": {
+    "5s/original/MusicGen_medium": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.4337979094076655,
+          "file_auc": 0.4878048780487805,
+          "n": 48
+        },
+        "df_arena": {
+          "file_eer": 0.5662020905923345,
+          "file_auc": 0.3693379790940766,
+          "n": 48
+        },
+        "equal_mean": {
+          "file_eer": 0.5783972125435539,
+          "file_auc": 0.39372822299651566,
+          "n": 48
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 287,
+        "both_strictly_correct": 46,
+        "sonics_only_strictly_correct": 94,
+        "df_only_strictly_correct": 60,
+        "neither_strictly_correct": 87,
+        "fusion_strictly_correct": 113,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.012195121951219412,
+      "delta_auc_vs_df": 0.024390243902439046
+    },
+    "5s/original/audioldm2": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.4695121951219512,
+          "file_auc": 0.4603658536585366,
+          "n": 49
+        },
+        "df_arena": {
+          "file_eer": 0.6295731707317074,
+          "file_auc": 0.30792682926829273,
+          "n": 49
+        },
+        "equal_mean": {
+          "file_eer": 0.6051829268292683,
+          "file_auc": 0.3567073170731707,
+          "n": 49
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 328,
+        "both_strictly_correct": 41,
+        "sonics_only_strictly_correct": 110,
+        "df_only_strictly_correct": 60,
+        "neither_strictly_correct": 117,
+        "fusion_strictly_correct": 117,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": -0.024390243902439046,
+      "delta_auc_vs_df": 0.04878048780487798
+    },
+    "5s/original/musicldm": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.4295392953929539,
+          "file_auc": 0.6558265582655827,
+          "n": 50
+        },
+        "df_arena": {
+          "file_eer": 0.6626016260162602,
+          "file_auc": 0.35501355013550134,
+          "n": 50
+        },
+        "equal_mean": {
+          "file_eer": 0.4417344173441734,
+          "file_auc": 0.5203252032520325,
+          "n": 50
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 369,
+        "both_strictly_correct": 94,
+        "sonics_only_strictly_correct": 148,
+        "df_only_strictly_correct": 37,
+        "neither_strictly_correct": 90,
+        "fusion_strictly_correct": 192,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": -0.22086720867208676,
+      "delta_auc_vs_df": 0.16531165311653112
+    },
+    "5s/original/mustango": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.458980044345898,
+          "file_auc": 0.5609756097560976,
+          "n": 52
+        },
+        "df_arena": {
+          "file_eer": 0.270509977827051,
+          "file_auc": 0.7605321507760533,
+          "n": 52
+        },
+        "equal_mean": {
+          "file_eer": 0.3647450110864745,
+          "file_auc": 0.7184035476718403,
+          "n": 52
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 451,
+        "both_strictly_correct": 188,
+        "sonics_only_strictly_correct": 65,
+        "df_only_strictly_correct": 155,
+        "neither_strictly_correct": 43,
+        "fusion_strictly_correct": 324,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.0942350332594235,
+      "delta_auc_vs_df": -0.04212860310421296
+    },
+    "5s/original/stable_audio_open": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.3704268292682927,
+          "file_auc": 0.6554878048780488,
+          "n": 49
+        },
+        "df_arena": {
+          "file_eer": 0.3704268292682927,
+          "file_auc": 0.6112804878048781,
+          "n": 49
+        },
+        "equal_mean": {
+          "file_eer": 0.4817073170731707,
+          "file_auc": 0.6707317073170731,
+          "n": 49
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 328,
+        "both_strictly_correct": 140,
+        "sonics_only_strictly_correct": 75,
+        "df_only_strictly_correct": 60,
+        "neither_strictly_correct": 53,
+        "fusion_strictly_correct": 220,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.11128048780487804,
+      "delta_auc_vs_df": 0.05945121951219501
+    },
+    "5s/mp3_64k/MusicGen_medium": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.5662020905923345,
+          "file_auc": 0.40069686411149824,
+          "n": 48
+        },
+        "df_arena": {
+          "file_eer": 0.5783972125435539,
+          "file_auc": 0.372822299651568,
+          "n": 48
+        },
+        "equal_mean": {
+          "file_eer": 0.5905923344947734,
+          "file_auc": 0.4076655052264808,
+          "n": 48
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 287,
+        "both_strictly_correct": 48,
+        "sonics_only_strictly_correct": 67,
+        "df_only_strictly_correct": 59,
+        "neither_strictly_correct": 113,
+        "fusion_strictly_correct": 117,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.012195121951219523,
+      "delta_auc_vs_df": 0.03484320557491283
+    },
+    "5s/mp3_64k/audioldm2": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.6295731707317074,
+          "file_auc": 0.33536585365853655,
+          "n": 49
+        },
+        "df_arena": {
+          "file_eer": 0.5060975609756098,
+          "file_auc": 0.4115853658536585,
+          "n": 49
+        },
+        "equal_mean": {
+          "file_eer": 0.5060975609756098,
+          "file_auc": 0.42073170731707316,
+          "n": 49
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 328,
+        "both_strictly_correct": 41,
+        "sonics_only_strictly_correct": 69,
+        "df_only_strictly_correct": 94,
+        "neither_strictly_correct": 124,
+        "fusion_strictly_correct": 138,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.0,
+      "delta_auc_vs_df": 0.009146341463414642
+    },
+    "5s/mp3_64k/musicldm": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.4417344173441734,
+          "file_auc": 0.6314363143631436,
+          "n": 50
+        },
+        "df_arena": {
+          "file_eer": 0.6626016260162602,
+          "file_auc": 0.3346883468834688,
+          "n": 50
+        },
+        "equal_mean": {
+          "file_eer": 0.4417344173441734,
+          "file_auc": 0.5203252032520325,
+          "n": 50
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 369,
+        "both_strictly_correct": 93,
+        "sonics_only_strictly_correct": 140,
+        "df_only_strictly_correct": 30,
+        "neither_strictly_correct": 106,
+        "fusion_strictly_correct": 192,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": -0.22086720867208676,
+      "delta_auc_vs_df": 0.18563685636856364
+    },
+    "5s/mp3_64k/mustango": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.6352549889135255,
+          "file_auc": 0.44567627494456763,
+          "n": 52
+        },
+        "df_arena": {
+          "file_eer": 0.2583148558758315,
+          "file_auc": 0.7627494456762749,
+          "n": 52
+        },
+        "equal_mean": {
+          "file_eer": 0.352549889135255,
+          "file_auc": 0.7139689578713969,
+          "n": 52
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 451,
+        "both_strictly_correct": 167,
+        "sonics_only_strictly_correct": 34,
+        "df_only_strictly_correct": 177,
+        "neither_strictly_correct": 73,
+        "fusion_strictly_correct": 322,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.0942350332594235,
+      "delta_auc_vs_df": -0.04878048780487798
+    },
+    "5s/mp3_64k/stable_audio_open": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.49390243902439024,
+          "file_auc": 0.5975609756097561,
+          "n": 49
+        },
+        "df_arena": {
+          "file_eer": 0.3704268292682927,
+          "file_auc": 0.5975609756097561,
+          "n": 49
+        },
+        "equal_mean": {
+          "file_eer": 0.39481707317073167,
+          "file_auc": 0.6524390243902438,
+          "n": 49
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 328,
+        "both_strictly_correct": 138,
+        "sonics_only_strictly_correct": 58,
+        "df_only_strictly_correct": 58,
+        "neither_strictly_correct": 74,
+        "fusion_strictly_correct": 214,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.02439024390243899,
+      "delta_auc_vs_df": 0.05487804878048774
+    },
+    "8s/original/MusicGen_medium": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.445993031358885,
+          "file_auc": 0.5121951219512195,
+          "n": 48
+        },
+        "df_arena": {
+          "file_eer": 0.5783972125435539,
+          "file_auc": 0.4111498257839721,
+          "n": 48
+        },
+        "equal_mean": {
+          "file_eer": 0.5905923344947734,
+          "file_auc": 0.43205574912891986,
+          "n": 48
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 287,
+        "both_strictly_correct": 67,
+        "sonics_only_strictly_correct": 80,
+        "df_only_strictly_correct": 51,
+        "neither_strictly_correct": 89,
+        "fusion_strictly_correct": 124,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.012195121951219523,
+      "delta_auc_vs_df": 0.020905923344947785
+    },
+    "8s/original/audioldm2": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.49390243902439024,
+          "file_auc": 0.4878048780487805,
+          "n": 49
+        },
+        "df_arena": {
+          "file_eer": 0.6295731707317074,
+          "file_auc": 0.28048780487804875,
+          "n": 49
+        },
+        "equal_mean": {
+          "file_eer": 0.6295731707317074,
+          "file_auc": 0.3445121951219512,
+          "n": 49
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 328,
+        "both_strictly_correct": 35,
+        "sonics_only_strictly_correct": 125,
+        "df_only_strictly_correct": 57,
+        "neither_strictly_correct": 111,
+        "fusion_strictly_correct": 113,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.0,
+      "delta_auc_vs_df": 0.06402439024390244
+    },
+    "8s/original/musicldm": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.24525745257452575,
+          "file_auc": 0.7317073170731707,
+          "n": 50
+        },
+        "df_arena": {
+          "file_eer": 0.5826558265582655,
+          "file_auc": 0.42140921409214094,
+          "n": 50
+        },
+        "equal_mean": {
+          "file_eer": 0.4417344173441734,
+          "file_auc": 0.6151761517615176,
+          "n": 50
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 369,
+        "both_strictly_correct": 119,
+        "sonics_only_strictly_correct": 151,
+        "df_only_strictly_correct": 36,
+        "neither_strictly_correct": 63,
+        "fusion_strictly_correct": 227,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": -0.14092140921409213,
+      "delta_auc_vs_df": 0.1937669376693767
+    },
+    "8s/original/mustango": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.6352549889135255,
+          "file_auc": 0.458980044345898,
+          "n": 52
+        },
+        "df_arena": {
+          "file_eer": 0.352549889135255,
+          "file_auc": 0.7195121951219512,
+          "n": 52
+        },
+        "equal_mean": {
+          "file_eer": 0.4467849223946785,
+          "file_auc": 0.6097560975609756,
+          "n": 52
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 451,
+        "both_strictly_correct": 150,
+        "sonics_only_strictly_correct": 57,
+        "df_only_strictly_correct": 174,
+        "neither_strictly_correct": 70,
+        "fusion_strictly_correct": 275,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.0942350332594235,
+      "delta_auc_vs_df": -0.1097560975609756
+    },
+    "8s/original/stable_audio_open": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.3826219512195122,
+          "file_auc": 0.6890243902439025,
+          "n": 49
+        },
+        "df_arena": {
+          "file_eer": 0.39481707317073167,
+          "file_auc": 0.6128048780487805,
+          "n": 49
+        },
+        "equal_mean": {
+          "file_eer": 0.4695121951219512,
+          "file_auc": 0.6829268292682927,
+          "n": 49
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 328,
+        "both_strictly_correct": 142,
+        "sonics_only_strictly_correct": 84,
+        "df_only_strictly_correct": 59,
+        "neither_strictly_correct": 43,
+        "fusion_strictly_correct": 224,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.07469512195121952,
+      "delta_auc_vs_df": 0.07012195121951226
+    },
+    "8s/mp3_64k/MusicGen_medium": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.554006968641115,
+          "file_auc": 0.42160278745644597,
+          "n": 48
+        },
+        "df_arena": {
+          "file_eer": 0.5783972125435539,
+          "file_auc": 0.4181184668989547,
+          "n": 48
+        },
+        "equal_mean": {
+          "file_eer": 0.5662020905923345,
+          "file_auc": 0.45993031358885017,
+          "n": 48
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 287,
+        "both_strictly_correct": 65,
+        "sonics_only_strictly_correct": 56,
+        "df_only_strictly_correct": 55,
+        "neither_strictly_correct": 111,
+        "fusion_strictly_correct": 132,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": -0.012195121951219412,
+      "delta_auc_vs_df": 0.04181184668989546
+    },
+    "8s/mp3_64k/audioldm2": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.6295731707317074,
+          "file_auc": 0.3323170731707317,
+          "n": 49
+        },
+        "df_arena": {
+          "file_eer": 0.6051829268292683,
+          "file_auc": 0.34146341463414637,
+          "n": 49
+        },
+        "equal_mean": {
+          "file_eer": 0.6173780487804879,
+          "file_auc": 0.4085365853658537,
+          "n": 49
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 328,
+        "both_strictly_correct": 40,
+        "sonics_only_strictly_correct": 69,
+        "df_only_strictly_correct": 72,
+        "neither_strictly_correct": 147,
+        "fusion_strictly_correct": 134,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.012195121951219523,
+      "delta_auc_vs_df": 0.06707317073170732
+    },
+    "8s/mp3_64k/musicldm": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.2208672086720867,
+          "file_auc": 0.7289972899728997,
+          "n": 50
+        },
+        "df_arena": {
+          "file_eer": 0.5826558265582655,
+          "file_auc": 0.3956639566395664,
+          "n": 50
+        },
+        "equal_mean": {
+          "file_eer": 0.4417344173441734,
+          "file_auc": 0.5420054200542006,
+          "n": 50
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 369,
+        "both_strictly_correct": 123,
+        "sonics_only_strictly_correct": 146,
+        "df_only_strictly_correct": 23,
+        "neither_strictly_correct": 77,
+        "fusion_strictly_correct": 200,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": -0.14092140921409213,
+      "delta_auc_vs_df": 0.14634146341463422
+    },
+    "8s/mp3_64k/mustango": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.541019955654102,
+          "file_auc": 0.44789356984478934,
+          "n": 52
+        },
+        "df_arena": {
+          "file_eer": 0.3647450110864745,
+          "file_auc": 0.7095343680709535,
+          "n": 52
+        },
+        "equal_mean": {
+          "file_eer": 0.3647450110864745,
+          "file_auc": 0.6629711751662971,
+          "n": 52
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 451,
+        "both_strictly_correct": 162,
+        "sonics_only_strictly_correct": 40,
+        "df_only_strictly_correct": 158,
+        "neither_strictly_correct": 91,
+        "fusion_strictly_correct": 299,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.0,
+      "delta_auc_vs_df": -0.04656319290465638
+    },
+    "8s/mp3_64k/stable_audio_open": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.3704268292682927,
+          "file_auc": 0.6310975609756098,
+          "n": 49
+        },
+        "df_arena": {
+          "file_eer": 0.39481707317073167,
+          "file_auc": 0.614329268292683,
+          "n": 49
+        },
+        "equal_mean": {
+          "file_eer": 0.39481707317073167,
+          "file_auc": 0.6646341463414633,
+          "n": 49
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 328,
+        "both_strictly_correct": 144,
+        "sonics_only_strictly_correct": 63,
+        "df_only_strictly_correct": 57,
+        "neither_strictly_correct": 64,
+        "fusion_strictly_correct": 218,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.0,
+      "delta_auc_vs_df": 0.050304878048780366
+    }
+  },
+  "previous_original_controls": {
+    "external": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.29166666666666663,
+          "file_auc": 0.8055555555555556,
+          "n": 48
+        },
+        "df_arena": {
+          "file_eer": 0.45833333333333337,
+          "file_auc": 0.6336805555555556,
+          "n": 48
+        },
+        "equal_mean": {
+          "file_eer": 0.29166666666666663,
+          "file_auc": 0.748263888888889,
+          "n": 48
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 576,
+        "both_strictly_correct": 303,
+        "sonics_only_strictly_correct": 161,
+        "df_only_strictly_correct": 62,
+        "neither_strictly_correct": 50,
+        "fusion_strictly_correct": 431,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": -0.16666666666666674,
+      "delta_auc_vs_df": 0.11458333333333337
+    },
+    "development_music": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.5416666666666667,
+          "file_auc": 0.4114583333333333,
+          "n": 48
+        },
+        "df_arena": {
+          "file_eer": 0.5,
+          "file_auc": 0.46875,
+          "n": 48
+        },
+        "equal_mean": {
+          "file_eer": 0.5416666666666667,
+          "file_auc": 0.45138888888888895,
+          "n": 48
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 576,
+        "both_strictly_correct": 92,
+        "sonics_only_strictly_correct": 145,
+        "df_only_strictly_correct": 178,
+        "neither_strictly_correct": 161,
+        "fusion_strictly_correct": 260,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.04166666666666674,
+      "delta_auc_vs_df": -0.01736111111111105
+    },
+    "development_controls": {
+      "metrics": {
+        "sonics": {
+          "file_eer": 0.625,
+          "file_auc": 0.265625,
+          "n": 32
+        },
+        "df_arena": {
+          "file_eer": 0.25,
+          "file_auc": 0.8854166666666667,
+          "n": 32
+        },
+        "equal_mean": {
+          "file_eer": 0.25,
+          "file_auc": 0.8020833333333334,
+          "n": 32
+        }
+      },
+      "pair_ranking": {
+        "real_fake_pairs": 192,
+        "both_strictly_correct": 48,
+        "sonics_only_strictly_correct": 3,
+        "df_only_strictly_correct": 122,
+        "neither_strictly_correct": 19,
+        "fusion_strictly_correct": 154,
+        "fusion_ties": 0,
+        "note": "Repeated samples across rank pairs; counts are not independent observations."
+      },
+      "delta_eer_vs_df": 0.0,
+      "delta_auc_vs_df": -0.08333333333333337
+    }
+  },
+  "summary": {
+    "conditions": 20,
+    "strict_both_improve": 6,
+    "eer_worse": 10,
+    "auc_worse": 4
+  },
+  "caveat": "All previously inspected development data; no independent holdout or competition Score. Previous controls use archived DF predictions from a different run.",
+  "decision": "Diagnostic only; no submission change or automatic adoption."
+}
