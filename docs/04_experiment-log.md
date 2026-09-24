@@ -403,6 +403,48 @@ GPU 비결정성이거나 간헐적 파일 실패로 보인다. 역산 신호(0.
 
 ---
 
+## 리더보드 A/B 재개 (2026-09-24)
+
+09-10 이후 제출이 없었다. 소규모 개발셋(8~48개)으로는 후보 간 차이를 가를 수 없어 전부 보류됐다.
+Public = Private = 전체 1,200개이므로 **미리 정한 소수 후보**를 리더보드로 직접 비교한다.
+임계값·가중치를 리더보드로 촘촘히 찾는 일은 하지 않는다(규칙 3).
+
+09-10 추가 제출 (docs/11 제출 화면 판독, 기준 #2 = 0.6956679788):
+
+| 제출 | 변경점 | 총점 | ADS | 해석 |
+|---|---|---:|---:|---|
+| silence | `silence_rms` 1e-3 | 0.6949962646 | 0.6621746032 | 기준 대비 −0.0007. 폐기 |
+| MUSICORIG | `music_source=original` | 0.6919962646 | 0.6589523810 | Music EER = 0.4257 + (0.6630317−0.6589524)/0.3 = **0.4393**. 원본 DF 채점이 스템보다 나쁘다. 폐기 |
+
+### 사전 등록 후보 — 기준 #2 에서 변경 1개씩
+
+판정: 총점이 기준보다 높으면 채택, 같거나 낮으면 폐기. 채택끼리만 다음 날 조합한다.
+
+| 일자 | zip | 변경점 | 겨냥 | 측정 방식 |
+|---|---|---|---|---|
+| 09-24 | `submit_topk25.zip` | `segment_agg=topk_mean`, `segment_topk_ratio=0.25` | 전 항목 (max 길이 편향) | 총점 |
+| 09-24 | `submit_musicmean.zip` | `segment_agg_music=mean` | MUSIC | ΔADS/0.3 = −ΔMusic EER |
+| 09-24 | `submit_directmax.zip` | `file_head=direct_max` | FILE | 총점 |
+| 09-25 | `submit_sonics.zip` | `music_head=sonics` (SONICS alpha-5s, 원본, 5초 창 sigmoid 평균) | MUSIC | ΔADS/0.3 = −ΔMusic EER. FILE·VOICE 불변이라 정확히 분리된다 |
+| 09-26 | (조건부) `direct_sonics_max` / `direct_sonics_mean` | SONICS 가 Music EER 을 낮췄을 때만 | FILE | 총점 |
+
+SONICS 채택 근거와 한계: 로컬 방송 음원(48개)에서 EER 0.458→0.292 개선, 오픈 생성기 개발셋에서는 혼재(docs/32·35).
+리더보드 생성기 구성을 모르므로 **효과는 제출 전까지 미검증**이다. 로드 실패 시 DF-Arena 음악 점수로 폴백하므로
+점수가 기준과 소수점까지 같으면 폴백으로 본다.
+
+`submit_sonics.zip` 제출 전 검증 (2026-09-24, 로컬 CPU · torch 2.7.1+cpu · librosa 0.10.2.post1 = 서버 버전):
+
+| 항목 | 결과 |
+|---|---|
+| 가중치 해시 | `bc816c92…` / config `92d133b3…` — 09-19 Colab 실행 기록과 일치 |
+| 벤더링 코드 strict 로드 | 성공. timm·torchvision 없이 동작 (서버에 둘 다 없음) |
+| Colab GPU 결과 재현 — 16kHz 원본 80개 | 창 logit 최대 차 **0.034**, 파일 확률 최대 차 **0.0022** |
+| 같은 대조 — 22.05kHz 방송 음원 48개 | logit 최대 차 0.57. soxr 품질만 바꿔도 0.35 움직여 **리샘플러 차이**로 판정. 평가셋은 16kHz 표준화라 해당 없음 |
+| `selftest_logic.py` | SONICS 12항목 포함 전체 통과 (MUSIC 만 교체, FILE·VOICE 불변, 폴백) |
+| `build_submit.py` | 실패 0 · 경고 0, zip 4.88 GB, script diff = `music_head` 1줄 |
+
+GPU 전체 파이프라인은 서버 제출이 첫 실행이다.
+
 ## 폐기한 시도
 
 효과 없던 것도 남긴다 — 2차 평가 「모델 개발 보고서」의 재료이고, 같은 실수를 두 번 하지 않기 위해서다.

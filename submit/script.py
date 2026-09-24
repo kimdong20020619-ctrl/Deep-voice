@@ -60,6 +60,9 @@ CONFIG = {
     #   "direct"      : 원본 오디오 전체를 DF-Arena 에 그대로 넣는다
     #   "direct_max"  : max(direct, fusion)
     #   "direct_mean" : 두 값의 평균
+    #   "direct_sonics_max"  : 음악 존재(>= gate_music) 파일만 max(direct, SONICS)
+    #   "direct_sonics_mean" : 음악 존재 파일만 (direct + SONICS) / 2
+    #                          두 옵션 모두 music_head="sonics" 가 필요하다
     #
     # 근거: DF-Arena 는 ASVspoof 계열로 학습된 **파일 단위** spoof 탐지기다.
     # 원본 전체를 넣는 것이 그 학습 설정과 정확히 일치한다.
@@ -99,7 +102,10 @@ CONFIG = {
     "segment_agg_voice": None,
     "segment_agg_music": None,
 
-    # 생성 음악 전용 헤드 (실효 가중치 0.27). "none" | "probe"
+    # 생성 음악 전용 헤드 (실효 가중치 0.27). "none" | "probe" | "constant" | "sonics"
+    #
+    # "sonics": SONICS SpecTTTra-alpha-5s 로 원본을 채점해 MUSIC_FAKE 를 대체한다
+    # (model/sonics_alpha5s, 코드는 model/sonics_vendor). FILE·VOICE 는 그대로다.
     #
     # DF-Arena 는 악기·반주 생성 음악을 학습하지 않았다. 새 모델을 들이는 대신
     # 이미 zip 에 있는 DF-Arena 의 마지막 분류기 직전 임베딩(1280차원)에
@@ -242,6 +248,8 @@ MODEL_DIR = BASE_DIR / "model"
 DF_ARENA_DIR = MODEL_DIR / "df_arena_1b"
 HTDEMUCS_DIR = MODEL_DIR / "htdemucs"
 PANNS_DIR = MODEL_DIR / "panns"
+SONICS_DIR = MODEL_DIR / "sonics_alpha5s"
+SONICS_CODE_DIR = MODEL_DIR / "sonics_vendor"
 
 TEST_DIR = BASE_DIR / "data" / "test"
 SAMPLE_SUBMISSION = BASE_DIR / "data" / "sample_submission.csv"
@@ -630,6 +638,76 @@ def load_file_probe():
     return load_probe("file_head.npz", "파일", "file_probe_blend")
 
 
+class SonicsScorer:
+    """SONICS SpecTTTra-alpha(5초) — Suno·Udio 생성 음악 탐지기 (MIT).
+
+    DF-Arena 는 음성 위조 탐지기라 생성 음악 EER 이 무작위 수준(리더보드 역산 42.6%)이다.
+    SONICS 는 보컬 포함 완성곡으로 학습됐으므로 분리 스템이 아니라 원본을 넣는다.
+    전처리는 Colab 검증(scripts/run_sonics_check.py)과 같다:
+    5초 창, 끝 창 포함, 부족분 0패딩, 창별 표준편차 정규화, sigmoid 평균.
+    """
+
+    WINDOW = 80_000   # 5초 @ 16kHz — 모델 입력 길이
+
+    def __init__(self, device):
+        vendor = str(SONICS_CODE_DIR)
+        if vendor not in sys.path:
+            sys.path.insert(0, vendor)
+        from sonics.models.model import AudioClassifier
+        from sonics.utils.config import dict2cfg
+
+        config = json.loads((SONICS_DIR / "config.json").read_text(encoding="utf-8"))
+        model = AudioClassifier(dict2cfg(config))
+        state = torch.load(SONICS_DIR / "pytorch_model.bin", map_location="cpu",
+                           weights_only=True)
+        model.load_state_dict(state, strict=True)
+        self.model = model.to(device).eval()
+        self.model.requires_grad_(False)
+        self.device = device
+
+    def windows(self, audio):
+        length = self.WINDOW
+        if audio.size <= length:
+            starts = [0]
+        else:
+            starts = list(range(0, audio.size - length + 1, length))
+            if starts[-1] != audio.size - length:
+                starts.append(audio.size - length)
+        clips = []
+        for start in starts:
+            clip = audio[start:start + length]
+            if clip.size < length:
+                clip = np.pad(clip, (0, length - clip.size))
+            clip = clip.astype(np.float32) / max(float(np.std(clip)), 1e-6)
+            clips.append(clip)
+        return np.stack(clips)
+
+    def score(self, audio):
+        batch = torch.from_numpy(self.windows(audio)).to(self.device)
+        with torch.inference_mode():
+            logits = self.model(batch).float().reshape(-1).cpu().numpy()
+        probabilities = 1.0 / (1.0 + np.exp(-np.clip(logits.astype(np.float64), -60.0, 60.0)))
+        return float(probabilities.mean())
+
+
+def load_sonics(device):
+    """music_head="sonics" 일 때만 로드한다. 실패하면 DF-Arena 음악 점수로 돈다.
+
+    로드 실패로 추론 전체가 죽으면 제출 1회를 태운다. 폴백되면 점수가 기준선과
+    같게 나오므로 리더보드에서 바로 식별된다.
+    """
+    if CONFIG.get("music_head") != "sonics":
+        return None
+    try:
+        scorer = SonicsScorer(device)
+        log(f"[info] SONICS 로드: {SONICS_DIR.name}")
+        return scorer
+    except Exception as error:
+        log(f"[warn] SONICS 로드 실패, DF-Arena 음악 점수를 쓴다: "
+            f"{type(error).__name__}: {error}\n{traceback.format_exc()}")
+        return None
+
+
 # 새 구조 — 혼합 오디오에서 세 판정을 직접 낸다 (분리 없음).
 # 학습한 Conformer 가 비선형을 담당하므로 헤드는 선형 하나로 충분하다.
 # 임베딩은 fc5 훅에서 어차피 나오므로 헤드 적용에 추가 연산이 없고 새 의존성도 없다.
@@ -906,7 +984,7 @@ def combine_file_fake_score(voice_fake, music_fake, voice_present, music_present
 # =============================================================================
 
 def process_one_file(audio_path, panns, scorer, htdemucs, device,
-                     music_probe=None, file_probe=None, multihead=None):
+                     music_probe=None, file_probe=None, multihead=None, sonics=None):
     audio = load_audio_16k(audio_path)
     voice_present, music_present = predict_presence(panns, audio)
 
@@ -1021,12 +1099,25 @@ def process_one_file(audio_path, panns, scorer, htdemucs, device,
             blend = float(CONFIG["file_probe_blend"])
             direct = blend * probe_agg + (1.0 - blend) * direct
 
-        if file_head == "direct":
+        if file_head in ("direct", "direct_sonics_max", "direct_sonics_mean"):
             file_fake = direct
         elif file_head == "direct_mean":
             file_fake = 0.5 * (direct + fused)
         else:                                   # direct_max
             file_fake = max(direct, fused)
+
+    # SONICS 는 원본 한 번 채점으로 MUSIC_FAKE 를 대체한다. FILE·VOICE 는 file_head 가
+    # direct_sonics_* 일 때만 영향을 받는다 — 제출 하나에 변경 하나를 지키기 위해서다.
+    if sonics is not None:
+        sonics_fake = sonics.score(audio)
+        music_fake = sonics_fake
+        # 음악이 없는 파일에서 SONICS 는 의미가 없다(음성 대조군 EER 0.625, docs/32).
+        if file_head in ("direct_sonics_max", "direct_sonics_mean") \
+                and music_present >= CONFIG["gate_music"]:
+            if file_head == "direct_sonics_max":
+                file_fake = max(file_fake, sonics_fake)
+            else:
+                file_fake = 0.5 * (file_fake + sonics_fake)
 
     # 진단 모드는 출력 직전에만 덮어쓴다. 위쪽 direct 재사용 로직을 건드리지 않기 위해서다.
     if CONFIG.get("music_head") == "constant":
@@ -1067,6 +1158,7 @@ def main():
     multihead = load_multihead()
     if multihead is not None:
         load_backend_finetune(scorer)
+    sonics = load_sonics(device)
     log(f"[info] 모델 로드 {time.perf_counter() - load_started:.1f}s")
 
     failures = []
@@ -1079,7 +1171,7 @@ def main():
             if audio_path is None:
                 raise FileNotFoundError(f"no file for ID {audio_id}")
             result = process_one_file(audio_path, panns, scorer, htdemucs, device,
-                                      music_probe, file_probe, multihead)
+                                      music_probe, file_probe, multihead, sonics)
         except Exception:
             # 한 파일의 실패가 1,200개 전체를 0점으로 만들지 않게 한다.
             failures.append(audio_id)

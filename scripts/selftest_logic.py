@@ -745,6 +745,74 @@ def test_music_probe(m):
     m.CONFIG["file_head"] = "fusion"
 
 
+class FakeSonics:
+    def __init__(self, value):
+        self.value = value
+        self.calls = 0
+
+    def score(self, audio):
+        self.calls += 1
+        return self.value
+
+
+def test_sonics(m):
+    print("\n[SONICS 음악 헤드]")
+    m.CONFIG["demucs_gating"] = True
+    m.CONFIG["gate_voice"] = 0.20
+    m.CONFIG["gate_music"] = 0.10
+    vf, mf, direct, s = 0.8, 0.3, 0.6, 0.95
+    audio = np.full(64_000, 0.1, dtype=np.float32)
+    m.load_audio_16k = lambda path: audio
+    m.separate_voice_and_music = lambda wav, model, device: (
+        np.full(64_000, 0.1, dtype=np.float32), np.full(64_000, 0.1, dtype=np.float32))
+
+    def run(vp, mp, file_head):
+        m.CONFIG["file_head"] = file_head
+        m.predict_presence = lambda panns, wav: (vp, mp)
+        sonics = FakeSonics(s)
+        result = m.process_one_file(Path("x.wav"), None, FakeScorer(vf, mf, direct),
+                                    None, None, sonics=sonics)
+        return result, sonics
+
+    base, _ = run(0.9, 0.9, "direct")
+    m.predict_presence = lambda panns, wav: (0.9, 0.9)
+    m.CONFIG["file_head"] = "direct"
+    plain = m.process_one_file(Path("x.wav"), None, FakeScorer(vf, mf, direct), None, None)
+    check("sonics: MUSIC_FAKE 만 교체", base["MUSIC_FAKE_PROB"] == s, str(base))
+    check("sonics: FILE·VOICE·존재 불변",
+          all(base[k] == plain[k] for k in ("FILE_FAKE_PROB", "VOICE_FAKE_PROB",
+                                            "VOICE_PRESENT_PROB", "MUSIC_PRESENT_PROB")),
+          f"{base} vs {plain}")
+    check("sonics 없음: 기존 DF 음악 점수", plain["MUSIC_FAKE_PROB"] == mf)
+
+    res, sc = run(0.9, 0.9, "direct_sonics_max")
+    check("direct_sonics_max: 음악 있음 -> max", res["FILE_FAKE_PROB"] == max(direct, s),
+          str(res["FILE_FAKE_PROB"]))
+    check("SONICS 는 파일당 1회", sc.calls == 1, str(sc.calls))
+    res, _ = run(0.9, 0.01, "direct_sonics_max")
+    check("direct_sonics_max: 음악 없음 -> 원본 점수(음성 단독 재사용)",
+          res["FILE_FAKE_PROB"] == vf, str(res["FILE_FAKE_PROB"]))
+    res, _ = run(0.9, 0.9, "direct_sonics_mean")
+    check("direct_sonics_mean: 음악 있음 -> 평균",
+          abs(res["FILE_FAKE_PROB"] - 0.5 * (direct + s)) < 1e-12, str(res["FILE_FAKE_PROB"]))
+
+    # 창 분할은 torch 없이 검증한다 — Colab 검증 코드와 같은 규칙이어야 한다.
+    scorer = object.__new__(m.SonicsScorer)
+    short = scorer.windows(np.ones(30_000, dtype=np.float32))
+    check("짧은 입력: 1창, 80000 으로 0패딩", short.shape == (1, 80_000) and short[0, -1] == 0.0,
+          str(short.shape))
+    long = scorer.windows(np.random.default_rng(0).standard_normal(200_000).astype(np.float32))
+    check("200000 샘플: 끝 창 포함 3창", long.shape == (3, 80_000), str(long.shape))
+    check("창별 표준편차 정규화", abs(float(np.std(long[2])) - 1.0) < 1e-4)
+
+    m.CONFIG["music_head"] = "none"
+    check("music_head!=sonics 면 로드 안 함", m.load_sonics(None) is None)
+    m.CONFIG["music_head"] = "sonics"
+    check("로드 실패 시 None 으로 폴백 (크래시 없음)", m.load_sonics(None) is None)
+    m.CONFIG["music_head"] = "none"
+    m.CONFIG["file_head"] = "fusion"
+
+
 def test_config_defaults(m):
     print("\n[기본 CONFIG = 베이스라인 동등성]")
     fresh = load_script()
@@ -780,6 +848,7 @@ def main():
     test_head_aggregation(module)
     test_file_head(module)
     test_music_probe(module)
+    test_sonics(module)
 
     print("\n" + "=" * 60)
     if FAILURES:

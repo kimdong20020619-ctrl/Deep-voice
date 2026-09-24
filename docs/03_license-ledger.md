@@ -27,6 +27,8 @@
 | 2 | **HTDemucs** `955717e8-8726e21a` | 음성/반주 분리 | demucs v4 사전학습 체크포인트 (Meta / `facebook/demucs`) | ⬜ **원문 미확인** — demucs 본체는 MIT, 사전학습 가중치 조건 별도 확인 필요 | 2026-09-05 | ⚠️ |
 | 3 | **PANNs Cnn14** `Cnn14_mAP=0.431.pth` | 음성·음악 존재 확률 | PANNs (Kong et al.), AudioSet 사전학습 | ⬜ **원문 미확인** — PANNs 코드는 Apache-2.0 로 알려져 있으나 배포본에 라이선스 파일 없음 | 2026-09-05 | ⚠️ |
 | 4 | **wav2vec2-XLS-R-1B config** | DF-Arena 프론트엔드 구성 | `facebook/wav2vec2-xls-r-1b` (config만 동봉) | ⬜ 미확인 (원본 모델은 Apache-2.0 로 알려짐) | 2026-09-05 | ⚠️ |
+| 5 | **SONICS SpecTTTra-alpha-5s** (가중치 + 추론 코드 벤더링) | MUSIC_FAKE (`music_head="sonics"`) | HF `awsaf49/sonics-spectttra-alpha-5s` rev `d30e3553a5ab08a171bdffdbbd2d792ac7970d65` (weights SHA-256 `bc816c92…4db2e`) · 코드 GitHub `awsaf49/sonics` rev `9156ffad151f797c71556923c4a02fa01fa8fc91` | 모델 카드 `license: mit`, 저장소 README "MIT for code and models". CC BY-NC 4.0 은 **데이터셋**에만 적용 — 데이터셋은 사용하지 않음. LICENSE 원문을 `model/sonics_vendor/LICENSE` 로 동봉 | 2026-09-24 | ✅ |
+| 6 | **timm 조각** (`Mlp`·`DropPath`·`use_fused_attn`) | SONICS 추론 호환 (서버에 timm 없음) | timm 1.0.15 `timm/layers/{mlp,drop,config}.py` → `model/sonics_vendor/sonics/layers/_timm_compat.py` | Apache-2.0 | 2026-09-24 | ✅ |
 
 ### 무결성 확인 (2026-09-05)
 
