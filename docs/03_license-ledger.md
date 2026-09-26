@@ -99,7 +99,10 @@ DeepFense 미러의 Apache-2.0 표기를 FakeMusicCaps 원본 오디오의 이�
 
 | 자원 | 용도 | 라이선스 | 출처 URL | 확인일 | 판정 |
 |---|---|---|---|---|---|
-| _(P2에서 채운다)_ | | | | | |
+| MLAAD `fake/ko/` (한국어 TTS 12종) | 가짜 음성 학습·홀드아웃 | CC BY-NC 4.0 (게이트: HF 로그인 + 약관 동의) | https://huggingface.co/datasets/mueller91/MLAAD | 2026-09-24 | ✅ (약관 동의는 사용자 계정) |
+| Zeroth-Korean (`Bingsu/zeroth-korean`, 원 출처 OpenSLR 40) | 진짜 한국어 음성 | CC BY 4.0 | https://huggingface.co/datasets/Bingsu/zeroth-korean | 2026-09-24 | ✅ |
+| FakeMusicCaps v2 | 가짜 음악(반주) | CC BY-NC 4.0 | https://doi.org/10.5281/zenodo.15063698 | 2026-09-11 · 09-24 재확인 | ✅ |
+| MUSAN music · noise | 진짜 음악(보컬 주석 포함) · 증강 잡음 | 배포 페이지 CC BY 4.0, 곡별 LICENSE 동봉 | https://www.openslr.org/17/ | 2026-09-12 · 09-24 채택 | ✅ (곡별 조건은 결과 zip 의 출처 목록으로 추적) |
 
 ### 후보 (전부 라이선스 미확인 ⬜)
 
