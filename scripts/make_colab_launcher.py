@@ -7,6 +7,7 @@
 사용: python scripts/make_colab_launcher.py  (먼저 make_kaggle_train_notebook.py 실행)
 """
 import base64
+import gzip
 import json
 from pathlib import Path
 
@@ -14,8 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 RUNNER = ROOT / "notebooks" / "train_heads_run.py"
 OUTPUT = ROOT / "notebooks" / "colab_launch_heads.ipynb"
 
-LAUNCH = '''import base64, os, pathlib, subprocess
-src = base64.b64decode("{payload}").decode("utf-8")
+LAUNCH = '''import base64, gzip, os, pathlib, subprocess
+src = gzip.decompress(base64.b64decode("{payload}")).decode("utf-8")
 path = pathlib.Path("/content/train_heads_run.py")
 path.write_text(src, encoding="utf-8")
 env = dict(os.environ, HF_HUB_DISABLE_PROGRESS_BARS="1", PYTHONUNBUFFERED="1")
@@ -52,6 +53,10 @@ while alive(pid):
     time.sleep(180)
 clear_output(wait=True)
 print("finished")
+# 09-26 실행은 결과가 런타임 디스크에만 남아 회수 전에 런타임이 회수됐다 — 끝나는 즉시 출력에 찍는다.
+for line in pathlib.Path("/content/train.log").read_text(errors="ignore").splitlines():
+    if line.startswith(("DVHEAD", "DVMETRICS")) or "== " in line or "[error]" in line or "Traceback" in line:
+        print(line)
 '''
 
 RESULT = '''# 끝난 뒤 실행 — 헤드(base64)와 지표를 찍는다. 이 출력만 옮기면 된다.
@@ -63,7 +68,8 @@ for line in pathlib.Path("/content/train.log").read_text(errors="ignore").splitl
 
 
 def main():
-    payload = base64.b64encode(RUNNER.read_bytes()).decode("ascii")
+    # gzip — 234KB 셀이 Colab 탭을 자주 멈추게 했다
+    payload = base64.b64encode(gzip.compress(RUNNER.read_bytes(), 9)).decode("ascii")
     cells = [LAUNCH.format(payload=payload), MONITOR, RESULT]
     for index, cell in enumerate(cells):
         compile(cell, f"cell{index}", "exec")

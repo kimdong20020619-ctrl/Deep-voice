@@ -61,5 +61,15 @@ DF-Arena 1B 고정 → fc5 입력 1280차원 세그먼트 임베딩 → 선형 �
 - 09-25: **첫 Colab 실행 소실** — 진행률 위젯 출력으로 탭이 멈추고 런타임이 회수됨. 09-25 제출도 0건(3슬롯 미사용).
 - 09-26 재실행: 학습을 nohup 백그라운드 프로세스로 전환(`notebooks/colab_launch_heads.ipynb` ← `scripts/make_colab_launcher.py`,
   본체 `notebooks/train_heads_run.py`), 진행률 표시 끔, 셀은 3분마다 로그 꼬리만. 06:04 UTC 시작, DF-Arena·HTDemucs 해시/검증 통과.
+- 09-26 재실행 2·3회차: 첫 재실행은 FakeMusicCaps 파일별 Range 요청이 Zenodo 지연으로 너무 느려(7분에 100여 개) 중단,
+  단일 curl 전체 다운로드도 약 2 MB/s 로 제한 → **aria2c 16연결(실측 약 40 MB/s)** 로 교체.
+  __MACOSX 리소스 포크(`._*.wav`) 가 생성기 목록에 섞이던 버그도 수정. 06:35 UTC 3회차 시작:
+  FMC 5.0분(생성기 5종 전부), MUSAN 4.8분(music 660곡, 보컬 주석 226, noise 380).
+  소스: v_real 5194/420 · m_fake 1520/260 · m_real 1146/156 · m_song 564/114 (학습/홀드아웃). 레시피 6,400.
+- **음악 헤드 채택 규칙 (결과 보기 전 고정, 09-26):**
+  - 비교 기준 = 같은 홀드아웃 클립에서 현재 제출의 MUSIC 점수(`df_music_score`: 혼합은 반주 스템, 음악 단독은 원본, topk25).
+  - 헤드 홀드아웃 EER 이 기준보다 **3pp 이상 낮으면** 제출 후보. blend 1.0 과 0.5 중 홀드아웃 EER 이 낮은 쪽을 1순위, 다른 쪽을 2순위.
+  - 3pp 미만이거나 홀드아웃 생성기(stable_audio_open)가 포함된 음악 단독 모드에서 악화되면 채택하지 않는다.
+  - 홀드아웃은 개발 자료다(생성기 1종 · MUSAN 해시 분할). 리더보드 결과가 최종 판정이다.
 - 결과 회수·빌드: 로그의 `DVHEAD` 줄 → `scripts/build_head_candidates.py <텍스트> musicprobe musicprobe05` (기준 topk25 + 변경 1개).
 - 09-24 제출 정확값: topk25 ADS 0.6672777778 · directmax 0.6665396825 · sonics 0.6568095238.
